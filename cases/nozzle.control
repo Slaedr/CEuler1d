@@ -1,0 +1,39 @@
+-type
+steady
+-output-file
+../cases/nozzle.dat
+-number-of-cells
+49
+-domain-length
+1.0
+-left-BC
+1
+-right-BC
+3
+-left-boundary-values(Pt,Tt,M)
+2117.0 531.2 0.2
+-right-boundary-values(P,T,M)
+1693.6 500 0.2
+-CFL
+0.1
+-inviscid-flux-scheme
+llf
+-slope-scheme
+none
+-face-reconstruction-scheme
+MUSCLG
+-limiter
+none
+-Tolerance
+1e-5
+-Max-iterations
+400000
+-area-function-setup-type
+1
+-area-function-file
+../cases/cross-section-profile-49.dat
+
+1693.6 0.80
+1608.9 0.76
+1439.6 0.68
+1270.2 0.60

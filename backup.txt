@@ -1,0 +1,46 @@
+
+	double p_t = bcvalL[0];
+	double T_t = bcvalL[1];
+	double M = bcvalL[2];
+	double term = 1.0 + (g-1.0)*0.5*M*M;
+	double Tin = T_t/term;
+	double pin = p_t*pow(term, -g/(g-1.0));
+
+	u[0][0] = pin/(R*Tin);
+	double cin = sqrt(g*pin/u[0][0]);
+	u[0][1] = u[0][0]*M*cin;
+	u[0][2] = pin/(g-1.0)+0.5*u[0][1]*M*cin;
+
+
+	// Assume initial velocity is zero throughout
+	// All cells but the first are initially according to the right BCs.
+	u[0][0] = bcvalL[0]/(R*bcvalL[1]);		// density = p/RT
+	u[0][1] = 0;
+	u[0][2] = bcvalL[0]/(g-1.0);			// E = p/(g-1)
+
+	for(int i = 1; i < N+2; i++)
+	{
+		// set values for last cell from right BCs
+		u[i][0] = bcvalR[0]/(R*bcvalL[1]);
+		u[i][2] = bcvalR[0]/(g-1.0);
+		u[i][1] = 0;
+	}
+
+
+
+// MUSCL modified according to Blazek
+			if(fabs(delminus) < ZERO_TOL*10)
+				uleft[i][j] = u[i][j];
+			else
+			{
+				sminus = lim->limiter_function( (u[i+1][j]-u[i][j])/delminus );
+				uleft[i][j] = u[i][j] + sminus/4.0*( (1-k)*delminus + (1+k)*(u[i+1][j]-u[i][j]) );
+			}
+			
+			if(fabs(delplus) < ZERO_TOL*10)
+				uright[i][j] = u[i+1][j];
+			else
+			{
+				splus = lim->limiter_function( (u[i+1][j]-u[i][j])/delplus );
+				uright[i][j] = u[i+1][j] - splus/4.0*( (1-k)*delplus + (1+k)*(u[i+1][j]-u[i][j]) );
+			}

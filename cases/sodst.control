@@ -1,0 +1,36 @@
+-simulation-type
+unsteady
+-output-file
+../cases/sodst.dat
+-number-of-cells
+10000
+-domain-length
+1.0
+-left-BC
+0
+-right-BC
+0
+-left-boundary-values
+0 0 0
+-right-boundary-values
+0 0 0
+-CFL
+0.2
+-inviscid-flux-scheme
+vanleer
+-slope-reconstruction-scheme
+none
+-face-reconstruction-scheme
+MUSCL
+-limiter
+vanalbada
+-Final-physical-time
+0.2
+-temporal-order-of-accuracy
+1
+-file-containing-TVDRK-coefficients
+../TVDRK1-coeffs.dat
+-area-function-setup-type
+0
+-area-function-file
+
