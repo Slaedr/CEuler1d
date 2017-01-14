@@ -15,25 +15,28 @@
 #include "reconstruction.h"
 #endif
 
-/// Base class for Euler solution processes
-class Euler1d
+typedef struct
 {
-protected:
-	int N;							///< Number of real cells in the grid
-	int ncell;						///< total number of cells including ghost cells
-	int nface;						///< total number of interfaces to compute fluxes across
-	Float* x;						///< Cell centers
-	Float* dx;						///< (1D) Size of each cell
-	Float* vol;					///< (3D) Volume of each cell
-	Float* nodes;					///< Mesh nodes
+	size_t N;							///< Number of real cells in the grid
+	size_t ncell;						///< total number of cells including ghost cells
+	size_t nface;						///< total number of interfaces to compute fluxes across
+	Float* x;							///< Cell centers
+	Float* dx;							///< (1D) Size of each cell
+	Float* nodes;						///< Mesh nodes
+} Grid;
+
+/// Base class for Euler solution processes
+typedef struct
+{
 	Float domlen;					///< Physical length of the domain
+	Float* vol;						///< (3D) Volume of each cell
 	Float* A;						///< Cross-sectional areas at cell centers
 	Float* Af;						///< Cross-sectional areas at interfaces
 	Float** u;						///< Conserved variables - u[i][0] is density of cell i and so on
 	Float** prim;					///< Primitive variables - u[i][0] is density of cell i and so on
 	Float** uleft;					///< Left state of each face
-	Float** uright;				///< Right state at each face
-	Float** prleft;				///< Left state of each face in terms of primitive variables
+	Float** uright;					///< Right state at each face
+	Float** prleft;					///< Left state of each face in terms of primitive variables
 	Float** prright;				///< Right state at each face in terms of primitive variables
 	Float** dudx;					///< Slope of variables in each cell
 	Float** res;					///< residual
@@ -41,86 +44,76 @@ protected:
 	int bcR;									///< right BC type
 	Float bcvalL[NVARS];						///< left boundary value
 	Float bcvalR[NVARS];						///< right boundary value
-	InviscidFlux* flux;							///< Inviscid flux computation context
-	SlopeReconstruction* cslope;				///< Slope reconstruction context
-	FaceReconstruction* rec;					///< Context responsible for computation of face values of flow variables from their cell-centred values
+	char* flux;									///< Inviscid flux computation to be used
+	char* cslope;								///< Slope reconstruction to be used (irrelevant)
+	char* rec;									///< Method for computation of face values of flow variables from their cell-centred values (MUSCL is used always)
 	Float cfl;									///< CFL number
+	Float g;						///< Adiabatic index
+} Euler1d;
 
-public:
-	Euler1d(int num_cells, Float length, int leftBCflag, int rightBCflag, std::vector<Float> leftBVs, std::vector<Float> rightBVs, Float cfl, 
-			std::string inviscid_flux, std::string slope_scheme, std::string face_extrap_scheme, std::string limiter);
+/// Setup variables
+/** Allocates memory on host for all arrays and copies inputs to variables where needed.
+ */
+void setup(Grid *const grid, Euler1d *const sim, const size_t num_cells, const int bcleft, const int bcright, const Float bcvalleft[NVARS], const Float bcvalright[NVARS], const Float domain_length,
+		const Float _cfl, const char *const _flux);
 
-	virtual ~Euler1d();
+/// Frees arrays allocated in setup()
+void finalize(Grid *const grid, Euler1d *const sim);
 
-	/// Generates a grid depending on 
-	/** \param type If type == 0, a uniform grid is generated and used. If type == 1, then grid points need to passed to the function in
-	 * \param pointlist an array of positions of mesh points.
-	 *
-	 * Note that the domain is assumed to start at x=0.
-	 */
-	void generate_mesh(int type, const std::vector<Float>& pointlist);
+/// Generates a grid depending on 
+/** \param type If type == 0, a uniform grid is generated and used. If type == 1, then grid points need to passed to the function in
+ * \param pointlist an array of positions of mesh points.
+ *
+ * Note that the domain is assumed to start at x=0.
+ */
+void generate_mesh(int type, const Float *const pointlist, Grid *const grid);
 
-	/// Set cross-sectional areas
-	void set_area(int type, std::vector<Float>& cellCenteredAreas);
+/// Set cross-sectional areas
+void set_area(int type, const Float *const cellCenteredAreas, const Grid *const grid, Euler1d *const sim);
 
-	void compute_slopes();
+//void compute_slopes();
 
-	void compute_face_values();
+//void compute_inviscid_fluxes(Float** prleft, Float** prright, Float** res, const Float* Af);
 
-	void compute_inviscid_fluxes(Float** prleft, Float** prright, Float** res, Float* Af);
-	
-	void compute_inviscid_fluxes_cellwise(Float** prleft, Float** prright, Float** res, Float* Af);
+void compute_inviscid_fluxes_cellwise(const Float *const *const prleft, const Float *const *const prright, Float *const *const res, const Float *const Af);
 
-	void compute_source_term(Float** u, Float** res, Float* Af);
+void compute_source_term(const Float *const *const u, Float *const *const res, const Float *const Af);
 
-	/// Find new ghost cell values
-	void apply_boundary_conditions();
-	
-	/// Find new values of left boundary face external state
-	/** Note that interior states at boundary faces should already be computed.
-	 */
-	void apply_boundary_conditions_at_left_boundary(std::vector<Float>& ul, const std::vector<Float>& ur);
-	
-	/// Find new values of right boundary face external state
-	/** Note that interior states at boundary faces should already be computed.
-	 */
-	void apply_boundary_conditions_at_right_boundary(const std::vector<Float>& ul, std::vector<Float>& ur);
-};
+/// Find new ghost cell values
+void apply_boundary_conditions(const Grid* grid, Euler1d* sim);
+
+/// Find new values of left boundary face external state
+/** Note that interior states at boundary faces should already be computed.
+ */
+void apply_boundary_conditions_at_left_boundary(Float *const ul, const Float *const ur);
+
+/// Find new values of right boundary face external state
+/** Note that interior states at boundary faces should already be computed.
+ */
+void apply_boundary_conditions_at_right_boundary(const Float *const ul, Float *const ur);
 
 /// Explicit RK solver for time-dependent 1D Euler equations
-class Euler1dExplicit : public Euler1d
+typedef struct
 {
 	Float ftime;								///< Physical time for which to simulate
 	Float mws;									///< for computing time steps
-	Float a;									///< temp variable
+	//Float a;									///< temp variable
 	int temporalOrder;							///< desired temporal order of accuracy
 	Float** RKCoeffs;							///< Low-storage multi-stage TVD RK coefficients
+} Euler1dUnsteadyExplicit;
 
-public:
-	Euler1dExplicit(int num_cells, Float length, int leftBCflag, int rightBCflag, std::vector<Float> leftBVs, std::vector<Float> rightBVs, Float cfl, std::string inviscidFlux,
-			std::string slope_scheme, std::string face_rec_scheme, std::string limiter, Float fTime, int temporal_order, std::string RKfile);
-
-	~Euler1dExplicit();
-
-	void run();
-	
-	void postprocess(std::string outfilename);
-};
+void unsteady_run(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExplicit *const tsim);
 
 /// Explicit RK solver for steady-state 1D Euler
-class Euler1dSteadyExplicit : public Euler1d
+typedef struct 
 {
 	Float tol;
 	int maxiter;
 	Float mws;									///< for computing time steps
+} Euler1dSteadyExplicit;
 
-public:
-	Euler1dSteadyExplicit(int num_cells, Float length, int leftBCflag, int rightBCflag, std::vector<Float> leftBVs, std::vector<Float> rightBVs, Float cfl, std::string inviscidFlux,
-			std::string slope_scheme, std::string face_rec_scheme, std::string limiter, Float toler, int max_iter);
+void steady_run(const Grid *const grid, Euler1d *const sim, Euler1dSteadyExplicit *const tsim);
 
-	void run();
-	
-	void postprocess(std::string outfilename);
-};
+void postprocess(const Grid *const grid, const Euler1d *const sim, const char *const outfilename);
 
 #endif

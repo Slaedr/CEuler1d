@@ -1,51 +1,57 @@
 #include "1deuler.h"
 
-Euler1d::Euler1d(int num_cells, Float length, int leftBCflag, int rightBCflag, std::vector<Float> leftBVs, std::vector<Float> rightBVs, Float CFL, 
-		std::string inviscid_flux, std::string slope_scheme, std::string face_extrap_scheme, std::string limiter)
-	: N(num_cells), domlen(length), bcL(leftBCflag), bcR(rightBCflag), cfl(CFL)
+void setup(Grid *const grid, Euler1d *const sim, const size_t num_cells, const int bcleft, const int bcright, const Float leftBVs[NVARS], const Float rightBVs[NVARS], const Float domain_length, 
+		const Float _cfl, const char *const _flux)
 {
-	ncell = N+2;
-	nface = N+1;
-	x = (Float*)malloc((N+2)*sizeof(Float));
-	dx = (Float*)malloc((N+2)*sizeof(Float));
-	A = (Float*)malloc((N+2)*sizeof(Float));
-	Af = (Float*)malloc((N+1)*sizeof(Float));
-	vol = (Float*)malloc((N+2)*sizeof(Float));
-	nodes = (Float*)malloc((N+1)*sizeof(Float));
+	grid->N = num_cells;
+	grid->ncell = N+2;
+	grid->nface = N+1;
+	
+	grid->x = (Float*)malloc((N+2)*sizeof(Float));
+	grid->dx = (Float*)malloc((N+2)*sizeof(Float));
+	grid->nodes = (Float*)malloc((N+1)*sizeof(Float));
 
-	u = (Float**)malloc((N+2)*sizeof(Float*));
-	//u[0] = (Float*)malloc((N+2)*NVARS*sizeof(Float));
-	prim = (Float**)malloc((N+2)*sizeof(Float*));
-	prim[0] = (Float*)malloc((N+2)*NVARS*sizeof(Float));
-	dudx = (Float**)malloc((N+2)*sizeof(Float*));
-	dudx[0] = (Float*)malloc((N+2)*NVARS*sizeof(Float));
-	res = (Float**)malloc((N+2)*sizeof(Float*));
-	res[0] = (Float*)malloc((N+2)*NVARS*sizeof(Float));
+	sim->A = (Float*)malloc((N+2)*sizeof(Float));
+	sim->Af = (Float*)malloc((N+1)*sizeof(Float));
+	sim->vol = (Float*)malloc((N+2)*sizeof(Float));
+	sim->u = (Float**)malloc((N+2)*sizeof(Float*));
+	sim->u[0] = (Float*)malloc((N+2)*NVARS*sizeof(Float));
+	sim->prim = (Float**)malloc((N+2)*sizeof(Float*));
+	sim->prim[0] = (Float*)malloc((N+2)*NVARS*sizeof(Float));
+	sim->dudx = (Float**)malloc((N+2)*sizeof(Float*));
+	sim->dudx[0] = (Float*)malloc((N+2)*NVARS*sizeof(Float));
+	sim->res = (Float**)malloc((N+2)*sizeof(Float*));
+	sim->res[0] = (Float*)malloc((N+2)*NVARS*sizeof(Float));
 
 	/*uleft = (Float**)malloc((N+1)*sizeof(Float*));
 	uleft[0] = (Float*)malloc((N+1)*NVARS*sizeof(Float));
 	uright = (Float**)malloc((N+1)*sizeof(Float*));
 	uright[0] = (Float*)malloc((N+1)*NVARS*sizeof(Float));*/
-	prleft = (Float**)malloc((N+1)*sizeof(Float*));
-	prleft[0] = (Float*)malloc((N+1)*NVARS*sizeof(Float));
-	prright = (Float**)malloc((N+1)*sizeof(Float*));
-	prright[0] = (Float*)malloc((N+1)*NVARS*sizeof(Float));
+	sim->prleft = (Float**)malloc((N+1)*sizeof(Float*));
+	sim->prleft[0] = (Float*)malloc((N+1)*NVARS*sizeof(Float));
+	sim->prright = (Float**)malloc((N+1)*sizeof(Float*));
+	sim->prright[0] = (Float*)malloc((N+1)*NVARS*sizeof(Float));
+
+	sim->cfl = _cfl;
+	sim->domlen = domain_length;
+	sim->bcL = bcleft;
+	sim->bcR = bcright;
 
 	for(int i = 0; i < NVARS; i++)
 	{
-		bcvalL[i] = leftBVs[i];
-		bcvalR[i] = rightBVs[i];
+		sim->bcvalL[i] = leftBVs[i];
+		sim->bcvalR[i] = rightBVs[i];
 	}
 
-	for(int i = 0; i < ncell; i++)
-		u[i] = (Float*)malloc(NVARS*sizeof(Float));
+	/*for(int i = 0; i < ncell; i++)
+		u[i] = (Float*)malloc(NVARS*sizeof(Float));*/
 
 	for(int i = 1; i < N+2; i++)
 	{
-		//u[i] = *u + i*NVARS;
-		prim[i] = *prim + i*NVARS;
-		dudx[i] = *dudx + i*NVARS;
-		res[i] = *res + i*NVARS;
+		sim->u[i] = *sim->u + i*NVARS;
+		sim->prim[i] = *sim->prim + i*NVARS;
+		sim->dudx[i] = *sim->dudx + i*NVARS;
+		sim->res[i] = *sim->res + i*NVARS;
 	}
 	for(int i = 0; i < N+1; i++)
 	{
@@ -55,99 +61,52 @@ Euler1d::Euler1d(int num_cells, Float length, int leftBCflag, int rightBCflag, s
 		prright[i] = *prright + i*NVARS;
 	}
 
-	if(inviscid_flux == "vanleer")
-	{
-		flux = new VanLeerFlux();
-		std::cout << "Euler1d: Using Van Leer numerical flux.\n";
-	}
-	else if(inviscid_flux == "llf")
-	{
-		flux = new LocalLaxFriedrichsFlux();
-		std::cout << "Euler1d: Using local Lax-Friedrichs numerical flux.\n";
-	}
-
-	if(slope_scheme == "none")
-	{
-		cslope = new TrivialSlopeReconstruction(N,x,dx,u,dudx);
-		std::cout << "Euler1d: No slope reconstruction to be used.\n";
-	}
-	else if(slope_scheme == "leastsquares")
-	{
-		cslope = new LeastSquaresReconstruction(N,x,dx,prim,dudx);
-		std::cout << "Euler1d: Least-squares slope reconstruction will be used.\n";
-	}
-	else if(slope_scheme == "central")
-	{
-		cslope = new CentralDifferenceReconstruction(N,x,dx,prim,dudx);
-		std::cout << "Euler1d: Central difference slope will be used.\n";
-	}
-	else
-	{
-		cslope = new TVDSlopeReconstruction(N,x,dx,prim,dudx,limiter);
-		std::cout << "Euler1d: TVD slope reconstruction will be used.\n";
-	}
-
-	if(face_extrap_scheme == "MUSCL")
-	{
-		rec = new MUSCLReconstruction(N,x,prim,dudx,prleft,prright,limiter,muscl_k);
-		std::cout << "Euler1d: Using MUSCL face reconstruction." << std::endl;
-	}
-	else if(face_extrap_scheme == "MUSCLG")
-	{
-		rec = new MUSCLReconstructionG(N,x,prim,dudx,prleft,prright,limiter,muscl_k);
-		std::cout << "Euler1d: Using 'MUSCL-G' face reconstruction." << std::endl;
-	}
-	else
-	{
-		rec = new LinearReconstruction(N,x,prim,dudx,prleft,prright);
-		std::cout << "Euler1d: Using Linear Taylor expansion reconstruction." << std::endl;
-	}
-
+	sim->flux = (char*)malloc(10*sizeof(char));
+	strcpy(sim->flux, _flux);
 }
 
-Euler1d::~Euler1d()
+void finalize(Grid *const grid, Euler1d *const sim);
 {
-	delete flux;
-	delete cslope;
-	delete rec;
+	free(sim->flux);
 	
-	free(x);			
-	free(dx);			
-	free(vol);		
-	free(nodes);		
-	free(A);
-	free(Af);
+	free(grid->x);			
+	free(grid->dx);			
+	free(grid->nodes);
 
-	//free(u[0]);			
-	free(prim[0]);		
-	//free(uleft[0]);		
-	//free(uright[0]);	
-	free(prleft[0]);	
-	free(prright[0]);	
-	free(dudx[0]);		
-	free(res[0]);
+	free(sim->A);
+	free(sim->Af);
+	free(sim->vol);		
+	free(sim->u[0]);			
+	free(sim->prim[0]);		
+	//free(sim->uleft[0]);		
+	//free(sim->uright[0]);	
+	free(sim->prleft[0]);	
+	free(sim->prright[0]);	
+	free(sim->dudx[0]);		
+	free(sim->res[0]);
 
-	for(int i = 0; i < N+2; i++)
-		free(u[i]);
-	free(u);
-	free(prim);		
-	//free(uleft);		
-	//free(uright);	
-	free(prleft);	
-	free(prright);	
-	free(dudx);		
-	free(res);
+	/*for(int i = 0; i < N+2; i++)
+		free(u[i]);*/
+
+	free(sim->u);
+	free(sim->prim);		
+	//free(sim->uleft);		
+	//free(sim->uright);	
+	free(sim->prleft);	
+	free(sim->prright);	
+	free(sim->dudx);		
+	free(sim->res);
 }
 
-void Euler1d::generate_mesh(int type, const std::vector<Float>& pointlist)
+void generate_mesh(int type, const Float *const pointlist, Grid *const grid)
 {
 	if(type == 0)
 	{
-		nodes[0] = 0.0;
-		Float delx = domlen/N;
-		x[0] = -delx/2.0;
-		dx[0] = delx;
-		for(int i = 1; i < N+2; i++)
+		grid->nodes[0] = 0.0;
+		Float delx = domlen/grid->N;
+		grid->x[0] = -delx/2.0;
+		grid->dx[0] = delx;
+		for(int i = 1; i < grid->N+2; i++)
 		{
 			dx[i] = delx;
 			x[i] = i*delx - delx/2.0;
@@ -157,52 +116,52 @@ void Euler1d::generate_mesh(int type, const std::vector<Float>& pointlist)
 	}
 	else
 	{
-		for(int i = 0; i < N+1; i++)
-			nodes[i] = pointlist[i];
-		for(int i = 1; i < N+1; i++)
+		for(int i = 0; i < grid->N+1; i++)
+			grid->nodes[i] = pointlist[i];
+		for(int i = 1; i < grid->N+1; i++)
 		{
-			x[i] = (nodes[i]+nodes[i-1])/2.0;
-			dx[i] = nodes[i]-nodes[i-1];
+			grid->x[i] = (grid->nodes[i]+grid->nodes[i-1])/2.0;
+			grid->dx[i] = grid->nodes[i]-grid->nodes[i-1];
 		}
 
 		// ghost cells
-		x[0] = -x[1]; 
-		dx[0] = dx[1];
-		x[N+1] = nodes[N] + dx[N]/2.0;
-		dx[N+1] = dx[N];
+		grid->x[0] = -grid->x[1]; 
+		grid->dx[0] = grid->dx[1];
+		grid->x[N+1] = grid->nodes[grid->N] + grid->dx[grid->N]/2.0;
+		grid->dx[N+1] = grid->dx[N];
 	}
 }
 
-void Euler1d::set_area(int type, std::vector<Float>& cellCenteredAreas)
+void set_area(int type, const Float *const cellCenteredAreas, const Grid *const grid, Euler1d *const sim);
 {
 	if(type == 0)
-		for(int i = 0; i < N+2; i++)
-			A[i] = cellCenteredAreas[0];
+		for(int i = 0; i < grid->N+2; i++)
+			sim->A[i] = cellCenteredAreas[0];
 	else
 	{
-		for(int i = 1; i < N+1; i++)
-			A[i] = cellCenteredAreas[i-1];
+		for(int i = 1; i < grid->N+1; i++)
+			sim->A[i] = cellCenteredAreas[i-1];
 		/*Float h = 0.15, t1 = 0.8, t2 = 3.0;
 		for(int i = 1; i < N+1; i++)
 			A[i] = 1.0 - h*pow(sin(PI*pow(x[i],t1)),t2);*/
 
 		// maybe assign ghost cell areas by linear extrapolation?
-		A[0] = A[1];
-		A[N+1] = A[N];
+		sim->A[0] = sim->A[1];
+		sim->A[N+1] = sim->A[grid->N];
 	}
 
 	/** Get interface areas as inverse-distance weighted averages of cell-centered areas so that they are exact for linear profiles.
 	 */
-	for(int i = 0; i <= N; i++)
-		Af[i] = (A[i]*dx[i+1] + A[i+1]*dx[i])/(dx[i]+dx[i+1]);
+	for(int i = 0; i <= grid->N; i++)
+		sim->Af[i] = (sim->A[i]*grid->dx[i+1] + sim->A[i+1]*grid->dx[i])/(grid->dx[i]+grid->dx[i+1]);
 
-	for(int i = 0; i < N+2; i++)
+	for(int i = 0; i < grid->N+2; i++)
 	{
-		vol[i] = dx[i]*A[i];
+		sim->vol[i] = grid->dx[i]*sim->A[i];
 	}
 }
 
-void Euler1d::compute_inviscid_fluxes(Float** prleft, Float** prright, Float** res, Float* Af)
+/*void Euler1d::compute_inviscid_fluxes(Float** prleft, Float** prright, Float** res, Float* Af)
 {
 	Float** fluxes = (Float**)malloc((N+1)*sizeof(Float*));
 	fluxes[0] = (Float*)malloc(NVARS*(N+1)*sizeof(Float));
@@ -232,21 +191,21 @@ void Euler1d::compute_inviscid_fluxes(Float** prleft, Float** prright, Float** r
 	
 	free(fluxes[0]);
 	free(fluxes);
-}
+}*/
 
-void Euler1d::compute_inviscid_fluxes_cellwise(Float** prleft, Float** prright, Float** res, Float* Af)
+void compute_inviscid_fluxes_cellwise(const Float *const *const prleft, const Float *const *const prright, Float *const *const res, const Float *const Af, const Grid *const gr)
 {
 	// NOTE: Do we really need to allocate this much?
-	Float** fluxes = (Float**)malloc((N+1)*sizeof(Float*));
-	fluxes[0] = (Float*)malloc(NVARS*(N+1)*sizeof(Float));
-	for(int i = 0; i < N+1; i++)
+	Float** fluxes = (Float**)malloc((gr->nface)*sizeof(Float*));
+	fluxes[0] = (Float*)malloc(NVARS*gr->nface*sizeof(Float));
+	for(int i = 0; i < gr->nface; i++)
 		fluxes[i] = *fluxes + i*NVARS;
 
-	#pragma acc kernels present( prleft, prright, Af, res, g, this) create(fluxes[:N+1][:NVARS])
+	#pragma acc kernels present( prleft, prright, Af, res, g, gr[0:1]) create(fluxes[:N+1][:NVARS])
 	{
 		// iterate over interfaces
 		#pragma acc loop independent gang worker device_type(nvidia) vector(NVIDIA_VECTOR_LENGTH)
-		for(int i = 1; i < N+1; i++)
+		for(int i = 1; i < gr->nface; i++)
 		{
 			compute_vanleerflux_prim(prleft[i-1], prright[i-1], fluxes[i], g);
 
