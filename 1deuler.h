@@ -39,15 +39,16 @@ typedef struct
 	Float** prleft;					///< Left state of each face in terms of primitive variables
 	Float** prright;				///< Right state at each face in terms of primitive variables
 	Float** dudx;					///< Slope of variables in each cell
-	Float** res;					///< residual
-	int bcL;									///< left BC type
-	int bcR;									///< right BC type
-	Float bcvalL[NVARS];						///< left boundary value
-	Float bcvalR[NVARS];						///< right boundary value
-	char* flux;									///< Inviscid flux computation to be used
-	char* cslope;								///< Slope reconstruction to be used (irrelevant)
-	char* rec;									///< Method for computation of face values of flow variables from their cell-centred values (MUSCL is used always)
-	Float cfl;									///< CFL number
+	Float** fluxes;					///< Fluxes across the faces
+	Float** res;					///< residuals
+	int bcL;						///< left BC type
+	int bcR;						///< right BC type
+	Float bcvalL[NVARS];			///< left boundary value
+	Float bcvalR[NVARS];			///< right boundary value
+	char* fluxstr;					///< Inviscid flux computation to be used
+	char* cslopestr;				///< Slope reconstruction to be used (irrelevant)
+	char* recstr;					///< Method for computation of face values of flow variables from their cell-centred values (MUSCL is used always)
+	Float cfl;						///< CFL number
 	Float g;						///< Adiabatic index
 } Euler1d;
 
@@ -73,9 +74,13 @@ void set_area(int type, const Float *const cellCenteredAreas, const Grid *const 
 
 //void compute_slopes();
 
-//void compute_inviscid_fluxes(Float** prleft, Float** prright, Float** res, const Float* Af);
+/// Computes Van Leer flux across all faces into a global flux array
+void compute_inviscid_fluxes_vanleer(const Float *const *const prleft, const Float *const *const prright, const Float *const Af, Float *const *const flux);
 
-void compute_inviscid_fluxes_cellwise(const Float *const *const prleft, const Float *const *const prright, Float *const *const res, const Float *const Af);
+/// Updates cell residuals from computed fluxes
+void update_residual(const Float *const *const flux, Float *const *const res);
+
+//void compute_inviscid_fluxes_cellwise(const Float *const *const prleft, const Float *const *const prright, Float *const *const res, const Float *const Af);
 
 void compute_source_term(const Float *const *const u, Float *const *const res, const Float *const Af);
 

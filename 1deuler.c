@@ -23,10 +23,8 @@ void setup(Grid *const grid, Euler1d *const sim, const size_t num_cells, const i
 	sim->res = (Float**)malloc((N+2)*sizeof(Float*));
 	sim->res[0] = (Float*)malloc((N+2)*NVARS*sizeof(Float));
 
-	/*uleft = (Float**)malloc((N+1)*sizeof(Float*));
-	uleft[0] = (Float*)malloc((N+1)*NVARS*sizeof(Float));
-	uright = (Float**)malloc((N+1)*sizeof(Float*));
-	uright[0] = (Float*)malloc((N+1)*NVARS*sizeof(Float));*/
+	sim->fluxes = (Float**)malloc((N+1)*sizeof(Float*));
+	sim->fluxes[0] = (Float*)malloc(NVARS*(N+1)*sizeof(Float));
 	sim->prleft = (Float**)malloc((N+1)*sizeof(Float*));
 	sim->prleft[0] = (Float*)malloc((N+1)*NVARS*sizeof(Float));
 	sim->prright = (Float**)malloc((N+1)*sizeof(Float*));
@@ -55,19 +53,18 @@ void setup(Grid *const grid, Euler1d *const sim, const size_t num_cells, const i
 	}
 	for(int i = 0; i < N+1; i++)
 	{
-		/*uleft[i] = *uleft + i*NVARS;
-		uright[i] = *uright + i*NVARS;*/
+		fluxes[i] = *fluxes + i*NVARS;
 		prleft[i] = *prleft + i*NVARS;
 		prright[i] = *prright + i*NVARS;
 	}
 
-	sim->flux = (char*)malloc(10*sizeof(char));
-	strcpy(sim->flux, _flux);
+	sim->fluxstr = (char*)malloc(10*sizeof(char));
+	strcpy(sim->fluxstr, _flux);
 }
 
 void finalize(Grid *const grid, Euler1d *const sim);
 {
-	free(sim->flux);
+	free(sim->fluxstr);
 	
 	free(grid->x);			
 	free(grid->dx);			
@@ -78,8 +75,7 @@ void finalize(Grid *const grid, Euler1d *const sim);
 	free(sim->vol);		
 	free(sim->u[0]);			
 	free(sim->prim[0]);		
-	//free(sim->uleft[0]);		
-	//free(sim->uright[0]);	
+	free(sim->fluxes[0]);
 	free(sim->prleft[0]);	
 	free(sim->prright[0]);	
 	free(sim->dudx[0]);		
@@ -90,8 +86,7 @@ void finalize(Grid *const grid, Euler1d *const sim);
 
 	free(sim->u);
 	free(sim->prim);		
-	//free(sim->uleft);		
-	//free(sim->uright);	
+	free(sim->fluxes);
 	free(sim->prleft);	
 	free(sim->prright);	
 	free(sim->dudx);		
@@ -161,39 +156,37 @@ void set_area(int type, const Float *const cellCenteredAreas, const Grid *const 
 	}
 }
 
-/*void Euler1d::compute_inviscid_fluxes(Float** prleft, Float** prright, Float** res, Float* Af)
+void compute_inviscid_fluxes_vanleer(const Float *const *const prleft, const Float *const *const prright, const Float *const Af, Float *const *const flux)
 {
-	Float** fluxes = (Float**)malloc((N+1)*sizeof(Float*));
-	fluxes[0] = (Float*)malloc(NVARS*(N+1)*sizeof(Float));
-	for(int i = 0; i < N+1; i++)
-		fluxes[i] = *fluxes + i*NVARS;
-
-	#pragma acc kernels present( prleft, prright, Af, res, this) create(fluxes[:N+1][:NVARS])
+	#pragma acc kernels present( flux, prleft, prright, Af, res)
 	{
 		// iterate over interfaces
 		#pragma acc loop independent gang worker device_type(nvidia) vector(NVIDIA_VECTOR_LENGTH)
 		for(int i = 0; i < N+1; i++)
 		{
-			//flux->compute_flux_prim(prleft[i], prright[i], fluxes[i]);
-			compute_vanleerflux_prim(prleft[i], prright[i], fluxes[i], g);
+			compute_vanleerflux_prim(prleft[i], prright[i], flux[i], g);
 
 			// update residual
 			for(int j = 0; j < NVARS; j++)
-			{
-				fluxes[i][j] *= Af[i];
-				#pragma acc atomic update
-				res[i][j] -= fluxes[i][j];
-				#pragma acc atomic update
-				res[i+1][j] += fluxes[i][j];
-			}
+				flux[i][j] *= Af[i];
 		}
 	}
-	
-	free(fluxes[0]);
-	free(fluxes);
-}*/
+}
 
-void compute_inviscid_fluxes_cellwise(const Float *const *const prleft, const Float *const *const prright, Float *const *const res, const Float *const Af, const Grid *const gr)
+void update_residual(const Float *const *const flux, Float *const *const res)
+{
+#pragma acc kernels present(flux, res)
+	{
+#pragma acc loop independent gang worker device_type(nvidia) vector(NVIDIA_VECTOR_LENGTH)
+		for(int i = 1; i < N+1; i++)
+		{
+			for(int j = 0; j < NVARS; j++)
+				res[i][j] += flux[i-1][j] - flux[i][j];
+		}
+	}
+}
+
+/*void compute_inviscid_fluxes_cellwise(const Float *const *const prleft, const Float *const *const prright, Float *const *const res, const Float *const Af, const Grid *const gr)
 {
 	// NOTE: Do we really need to allocate this much?
 	Float** fluxes = (Float**)malloc((gr->nface)*sizeof(Float*));
@@ -227,11 +220,11 @@ void compute_inviscid_fluxes_cellwise(const Float *const *const prleft, const Fl
 	
 	free(fluxes[0]);
 	free(fluxes);
-}
+}*/
 
-void Euler1d::compute_source_term(Float** u, Float** res, Float* Af)
+void compute_source_term(const Float *const *const u, Float *const *const res, const Float *const Af);
 {
-	#pragma acc kernels present(u, Af, res, g, this)
+	#pragma acc kernels present(u, Af, res, g)
 	{
 		#pragma acc loop independent gang worker device_type(nvidia) vector(NVIDIA_VECTOR_LENGTH)
 		for(int i = 1; i <= N; i++)
