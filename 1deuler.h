@@ -25,7 +25,7 @@ typedef struct
 	Float* nodes;						///< Mesh nodes
 } Grid;
 
-/// Base class for Euler solution processes
+/// Base struct for Euler solution processes
 typedef struct
 {
 	Float domlen;					///< Physical length of the domain
@@ -75,17 +75,20 @@ void set_area(int type, const Float *const cellCenteredAreas, const Grid *const 
 //void compute_slopes();
 
 /// Computes Van Leer flux across all faces into a global flux array
-void compute_inviscid_fluxes_vanleer(const Float *const *const prleft, const Float *const *const prright, const Float *const Af, Float *const *const flux);
+void compute_inviscid_fluxes_vanleer(const Float *const *const prleft, const Float *const *const prright, const Float *const Af, Float *const *const flux, const Float g);
+
+/// Computes LLF fluxes across all faces into a global flux array
+void compute_inviscid_fluxes_llf(const Float *const *const prleft, const Float *const *const prright, const Float *const Af, Float *const *const flux, const Float g);
 
 /// Updates cell residuals from computed fluxes
 void update_residual(const Float *const *const flux, Float *const *const res);
 
 //void compute_inviscid_fluxes_cellwise(const Float *const *const prleft, const Float *const *const prright, Float *const *const res, const Float *const Af);
 
-void compute_source_term(const Float *const *const u, Float *const *const res, const Float *const Af);
+void compute_source_term(const Float *const *const u, Float *const *const res, const Float *const Af, const Float g);
 
 /// Find new ghost cell values
-void apply_boundary_conditions(const Grid* grid, Euler1d* sim);
+void apply_boundary_conditions(Euler1d *const sim);
 
 /// Find new values of left boundary face external state
 /** Note that interior states at boundary faces should already be computed.
@@ -96,29 +99,5 @@ void apply_boundary_conditions_at_left_boundary(Float *const ul, const Float *co
 /** Note that interior states at boundary faces should already be computed.
  */
 void apply_boundary_conditions_at_right_boundary(const Float *const ul, Float *const ur);
-
-/// Explicit RK solver for time-dependent 1D Euler equations
-typedef struct
-{
-	Float ftime;								///< Physical time for which to simulate
-	Float mws;									///< for computing time steps
-	//Float a;									///< temp variable
-	int temporalOrder;							///< desired temporal order of accuracy
-	Float** RKCoeffs;							///< Low-storage multi-stage TVD RK coefficients
-} Euler1dUnsteadyExplicit;
-
-void unsteady_run(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExplicit *const tsim);
-
-/// Explicit RK solver for steady-state 1D Euler
-typedef struct 
-{
-	Float tol;
-	int maxiter;
-	Float mws;									///< for computing time steps
-} Euler1dSteadyExplicit;
-
-void steady_run(const Grid *const grid, Euler1d *const sim, Euler1dSteadyExplicit *const tsim);
-
-void postprocess(const Grid *const grid, const Euler1d *const sim, const char *const outfilename);
 
 #endif
