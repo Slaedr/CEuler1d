@@ -6,68 +6,96 @@ Euler1dSteadyExplicit::Euler1dSteadyExplicit(int num_cells, Float length, int le
 {
 }
 
-void run_steady()
+void setup_data_steady(const size_t num_cells, const int bcleft, const int bcright, const Float bcvalleft[NVARS], const Float bcvalright[NVARS], const Float domain_length,	const char *const _flux, 
+		const Float _cfl, Float _tol, int max_iter, Grid *const grid, Euler1d *const sim, Euler1dSteadyExplicit *const tsim)
+{
+	tsim->tol = _tol;
+	tsim->maxiter = max_iter;
+	set_data(grid, sim, num_cells, bcleft, bcright, bcvalleft, bcvalright, domain_length, _cfl, _flux);
+}
+
+void run_steady(const Grid *const grid, Euler1d *const sim, Euler1dSteadyExplicit *const tsim)
 {
 	int step = 0;
 	Float resnorm = 1.0, resnorm0 = 1.0;
-	std::vector<Float> dt(N+2);
 
-	std::vector<Float> c(N+2);
-	std::vector<std::vector<Float>> uold;
-	uold.resize(N+2);
-	for(int i = 0; i < N+2; i++)
-		uold[i].resize(NVARS);
+	Float* dt = (Float*)malloc((grid->N+2)*sizeof(Float));
+	Float** uold = (Float**)malloc((grid->N+2)*sizeof(Float*));
+	uold[0] = (Float*)malloc((grid->N+2)*NVARS*sizeof(Float));
+	for(int i = 0; i < grid->N+2; i++)
+		uold[i] = *uold + i*NVARS;
 
 	// initial conditions
 	
-	Float p_t = bcvalL[0];
-	Float T_t = bcvalL[1];
-	Float M = bcvalL[2];
+	Float p_t = sim->bcvalL[0];
+	Float T_t = sim->bcvalL[1];
+	Float M = sim->bcvalL[2];
 	Float term = 1.0 + (g-1.0)*0.5*M*M;
 	Float Tin = T_t/term;
-	Float pin = p_t*pow(term, -g/(g-1.0));
+	Float pin = p_t*pow(term, -sim->g/(sim->g-1.0));
 	Float cin;
 
-	Float pex = bcvalR[0], tex = bcvalR[1], Mex = bcvalR[2], cex, vex;
+	Float pex = sim->bcvalR[0], tex = sim->bcvalR[1], Mex = sim->bcvalR[2], cex, vex;
 	
 	// set some cells according to inlet condition
-	int pn = N/4;
+	int pn = grid->N/4;
 	for(int i = 0; i <= pn; i++)
 	{
-		u[i][0] = pin/(R*Tin);
-		cin = sqrt(g*pin/u[i][0]);
-		u[i][1] = u[i][0]*M*cin;
-		u[i][2] = pin/(g-1.0)+0.5*u[i][1]*M*cin;
-		prim[i][0] = u[i][0];
-		prim[i][1] = M*cin;
-		prim[i][2] = pin;
+		sim->u[i][0] = pin/(R*Tin);
+		cin = sqrt(g*pin/sim->u[i][0]);
+		sim->u[i][1] = sim->u[i][0]*M*cin;
+		sim->u[i][2] = pin/(sim->g-1.0)+0.5*sim->u[i][1]*M*cin;
+		sim->prim[i][0] = sim->u[i][0];
+		sim->prim[i][1] = M*cin;
+		sim->prim[i][2] = pin;
 	}
 
 	// set last cells according to exit conditions
-	for(int i = N+1; i <= N+1; i++)
+	for(int i = grid->N+1; i <= grid->N+1; i++)
 	{
-		u[i][0] = pex/(R*tex);
-		cex = sqrt(g*pex/u[i][0]);
+		sim->u[i][0] = pex/(R*tex);
+		cex = sqrt(sim->g*pex/sim->u[i][0]);
 		vex = Mex*cex;
-		u[i][1] = u[i][0]*vex;
-		u[i][2] = pex/(g-1.0) + 0.5*u[i][0]*vex*vex;
-		prim[i][0] = u[i][0];
-		prim[i][1] = vex;
-		prim[i][2] = pex;
+		sim->u[i][1] = sim->u[i][0]*vex;
+		sim->u[i][2] = pex/(sim->g-1.0) + 0.5*sim->u[i][0]*vex*vex;
+		sim->prim[i][0] = sim->u[i][0];
+		sim->prim[i][1] = vex;
+		sim->prim[i][2] = pex;
 	}
 
 	// linearly interpolate cells in the middle
-	for(int i = pn; i < N+1; i++)
+	for(int i = pn; i < grid->N+1; i++)
 	{
 		for(int j = 0; j < NVARS; j++)
 		{
-			u[i][j] = (u[N+1][j]-u[pn][j])/(x[N+1]-x[pn])*(x[i]-x[pn]) + u[pn][j];
-			prim[i][j] = (prim[N+1][j]-prim[pn][j])/(x[N+1]-x[pn])*(x[i]-x[pn]) + prim[pn][j];
+			sim->u[i][j] = (sim->u[grid->N+1][j]-sim->u[pn][j])/(grid->x[grid->N+1]-grid->x[pn])*(grid->x[i]-grid->x[pn]) + sim->u[pn][j];
+			sim->prim[i][j] = (sim->prim[grid->N+1][j]-sim->prim[pn][j])/(grid->x[grid->N+1]-grid->x[pn])*(grid->x[i]-grid->x[pn]) + sim->prim[pn][j];
 		}
 	}
 
-	// Start time loop
+	Float** u = sim->u;
+	Float** prim = sim->prim;
+	Float** dudx = sim->dudx;
+	Float** res = sim->res;
+	Float** fluxes = sim->fluxes;
+	Float** prleft = sim->prleft;
+	Float** prright = sim->prright;
+	Float* x = grid->x;
+	Float* dx = grid->dx;
+	Float* A = sim->A;
+	Float* Af = sim->Af;
+	Float* vol = sim->vol;
+	Float* nodes = grid->nodes;
+	Float* bcvalL = sim->bcvalL;
+	Float* bcvalR = sim->bcvalR;
+	int* bcL = &(sim->bcL);
+	int* bcR = &(sim->bcR);
 
+	int N = grid->N;
+	Float g = sim->g;
+	Float cfl = sim->cfl;
+	
+	// Start time loop
 	while(resnorm/resnorm0 > tol && step < maxiter)
 	{
 		int i,j;
@@ -79,23 +107,24 @@ void run_steady()
 				res[i][j] = 0;
 			}
 		}
+			
+		compute_MUSCLReconstruction(N, x, u, prleft, prright, k);
+		//printf("Euler1dExplicit: run():  Computed face values\n");
 
-		//cslope->compute_slopes();
-		rec->compute_face_values();
+		compute_inviscid_fluxes_vanleer(prleft, prright, Af, fluxes, g);
+		//std::cout << "Euler1dExplicit: run():  Computed fluxes" << std::endl;
+		
+		update_residual(fluxes, res);
 
-		compute_inviscid_fluxes(prleft,prright,res,Af);
 		compute_source_term(u,res,Af);
+		//std::cout << "Euler1dExplicit: run():  Computed source terms" << std::endl;
 
 		// find time step as dt = CFL * min{ dx[i]/(|v[i]|+c[i]) }
 		
 		for(i = 1; i < N+1; i++)
 		{
-			c[i] = sqrt( g*(g-1.0) * (u[i][2] - 0.5*u[i][1]*u[i][1]/u[i][0]) / u[i][0] );
-		}
-
-		for(i = 1; i < N+1; i++)
-		{
-			dt[i] = cfl * dx[i]/(fabs(u[i][1]) + c[i]);
+			Float c = sqrt( g*(g-1.0) * (u[i][2] - 0.5*u[i][1]*u[i][1]/u[i][0]) / u[i][0] );
+			dt[i] = cfl * dx[i]/(fabs(u[i][1]) + c);
 		}
 
 		resnorm = 0;
@@ -121,28 +150,25 @@ void run_steady()
 
 		if(step % 10 == 0)
 		{
-			std::cout << "Euler1dSteadyExplicit: run(): Step " << step << ", relative mass flux norm = " << resnorm/resnorm0 << std::endl;
+			printf("Euler1dSteadyExplicit: run(): Step %d, relative mass flux norm = %f\n", step, resnorm/resnorm0);
 		}
 
 		step++;
 	}
 
-	std::cout << "Euler1dExplicit: run(): Done. Number of time steps = " << step << std::endl;
-
-	/*for(int j = 0; j < NVARS; j++)
-	{
-		for(int i = 0; i <= N+1; i++)
-			std::cout << dudx[i][j] << " ";
-		std::cout << std::endl;
-	}
-	std::cout << std::endl;*/
+	printf("Euler1dExplicit: run(): Done. Number of time steps = %d\n", step);
 
 	if(step == maxiter)
-		std::cout << "Euler1dExplicit: run(): Not converged!" << std::endl;
+		printf("Euler1dExplicit: run(): Not converged!\n");
+
+	free(dt);
+	free(uold[0]);
+	free(uold);
 }
 
 void postprocess_steady(const Grid *const grid, const Euler1d *const sim, const char *const outfilename)
 {
+	printf("postprocess_steady: Writing output to file.\n");
 	FILE* ofile = fopen(outfilename, "w");
 	Float pressure, mach, c;
 	for(int i = 1; i < sim->N+1; i++)

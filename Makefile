@@ -23,19 +23,19 @@ ifndef DEBUG
     LFLAGS = -O3
   else
     CFLAGS =  -O3 -Winline -ftree-vectorizer-verbose=2
-    LFLAGS = -O3 #-lmkl_intel_lp64 -lmkl_intel_thread -liomp5 -lmkl_core -lpthread
+    LFLAGS = -O3
   endif
 
 else
 
-  PROFILE = -pg
+  #PROFILE = -pg
   $(info "Compiling debug version")
   ifeq ($(CC),pgcc)
     CFLAGS = -g #-Minfo=vect,inline
     LFLAGS = 
   else
     CFLAGS = -ggdb -Winline -ftree-vectorizer-verbose=2
-    LFLAGS = -ggdb #-lmkl_intel_lp64 -lmkl_intel_thread -liomp5 -lmkl_core -lpthread
+    LFLAGS = -ggdb
   endif
 
 endif
@@ -54,19 +54,14 @@ ifdef BUILD_WITH_ACC
     endif
   endif
 endif
- 
-libsrcs =$(wildcard *.cpp)     
-libobjst = $(libsrcs:.cpp=.o)
-libobjs = $(foreach obj,$(libobjst),$(PREFIX)/$(obj))
+
+
 clibsrcs =$(wildcard *.c)
 clibobjst =$(clibsrcs:.c=.o)
 clibobjs = $(foreach obj,$(clibobjst),$(PREFIX)/$(obj))
 
-$(NAME): $(libobjs)
+$(NAME): $(clibobjs)
 	$(CC) $(LFLAGS) -o $(PREFIX)/$(NAME) $(clibobjs) $(LIBS) $(PROFILE)
-
-#$(PREFIX)/%.o: %.cpp                    
-#	$(CXX) $(CPPFLAGS) $(EIGENDEF) -c -o $@ $<  $(INCLUDES) $(PROFILE)
 
 $(PREFIX)/%.o: %.c
 	$(CC)  $(CFLAGS) -c -o $@ $<  $(INCLUDES) $(PROFILE)

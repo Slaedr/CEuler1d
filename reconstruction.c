@@ -6,7 +6,7 @@
 
 #include "reconstruction.h"
 
-void compute_MUSCLReconstruction(const size_t N, Float const *const x, Float const *const *const u, Float const *const *const _dudx, Float * const * const uleft, 
+void compute_MUSCLReconstruction(const size_t N, Float const *const x, Float const *const *const u, Float * const * const uleft, 
 		Float * const * const uright, const Float k)
 
 {
@@ -28,7 +28,7 @@ void compute_MUSCLReconstruction(const size_t N, Float const *const x, Float con
 				if(fabs(denL) > ZERO_TOL*10)
 				{
 					rL = num/denL;
-					uleft[i][j] = u[i][j] + 0.25*vanalbada_limiter_function(rL) * ((1.0+(*k))*num + (1.0-(*k))*denL);
+					uleft[i][j] = u[i][j] + 0.25*vanalbada_limiter_function(rL) * ((1.0+(k))*num + (1.0-(k))*denL);
 				}
 				else
 					uleft[i][j] = u[i][j];
@@ -36,7 +36,7 @@ void compute_MUSCLReconstruction(const size_t N, Float const *const x, Float con
 				if(fabs(denR) > ZERO_TOL*10)
 				{
 					rR = num/denR;
-					uright[i][j] = u[i+1][j] - 0.25*vanalbada_limiter_function(rR) * ((1.0+(*k))*num + (1.0-(*k))*denR);
+					uright[i][j] = u[i+1][j] - 0.25*vanalbada_limiter_function(rR) * ((1.0+(k))*num + (1.0-(k))*denR);
 				}
 				else
 					uright[i][j] = u[i+1][j];
@@ -73,7 +73,7 @@ void compute_MUSCLReconstruction(const size_t N, Float const *const x, Float con
 			if(fabs(denL) > ZERO_TOL*10)
 			{
 				rL = num/denL;
-				uleft[0][j] = u[0][j] + 0.25*vanalbada_limiter_function(rL) * ((1.0+(*k))*num + (1.0-(*k))*denL);
+				uleft[0][j] = u[0][j] + 0.25*vanalbada_limiter_function(rL) * ((1.0+(k))*num + (1.0-(k))*denL);
 			}
 			else
 				uleft[0][j] = u[0][j];
@@ -81,7 +81,7 @@ void compute_MUSCLReconstruction(const size_t N, Float const *const x, Float con
 			if(fabs(denR) > ZERO_TOL*10)
 			{
 				rR = num/denR;
-				uright[0][j] = u[1][j] - 0.25*vanalbada_limiter_function(rR) * ((1.0+(*k))*num + (1.0-(*k))*denR);
+				uright[0][j] = u[1][j] - 0.25*vanalbada_limiter_function(rR) * ((1.0+(k))*num + (1.0-(k))*denR);
 			}
 			else
 				uright[0][j] = u[1][j];

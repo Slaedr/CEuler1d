@@ -16,13 +16,16 @@ typedef double Float;
 const Float PI = 3.14159265359;
 
 /// adiabatic index
-const Float g = 1.4;
+#define gamma 1.4
+
+/// MUSCL factor
+const Float k = 1.0/3.0;
 
 /// Specific gas constant of air
 //const Float R = 287.1;
-const Float R = 1716;
+#define R 1716.0
 
-const Float Cv = R/(g-1.0);
+#define Cv R/(g-1.0)
 
 /// Constant for MUSCL reconstruction
 const Float muscl_k = 1.0/3.0;

@@ -1,7 +1,7 @@
 #include "explicitunsteady.h"
 
-void set_data_unsteady(const size_t num_cells, const int bcleft, const int bcright, const Float bcvalleft[NVARS], const Float bcvalright[NVARS], const Float domain_length, 
-		Float f_time, int temporal_order, const char* RKfile, Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExplicit *const tsim)
+void set_data_unsteady(const size_t num_cells, const int bcleft, const int bcright, const Float bcvalleft[NVARS], const Float bcvalright[NVARS], const Float domain_length, const Float _cfl, 
+		const char *const _flux, Float f_time, int temporal_order, const char* RKfile, Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExplicit *const tsim)
 {
 	setup(grid, sim, num_cells, bcleft, bcright, bcvalleft, bcvalright, domain_length, _cfl, _flux);
 
@@ -17,6 +17,12 @@ void set_data_unsteady(const size_t num_cells, const int bcleft, const int bcrig
 	fclose(rkfile);
 
 	printf("Euler1dExplicit: Using %d-stage TVD RK scheme; loaded coefficients.\n", temporalOrder);
+}
+
+void finalize_unsteady(Euler1dUnsteadyExplicit *const tsim)
+{
+	free(tsim->RKCoeffs[0]);
+	free(RKCoeffs);
 }
 
 void run_unsteady(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExplicit *const tsim)
@@ -78,7 +84,7 @@ void run_unsteady(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExp
 	int* bcL = &(sim->bcL);
 	int* bcR = &(sim->bcR);
 
-	int N = sim->N;
+	int N = grid->N;
 	Float g = sim->g;
 	Float cfl = sim->cfl;
 	//int* N = &(grid->N);
@@ -114,25 +120,13 @@ void run_unsteady(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExp
 			dt = fmin(dt, c[i]);
 		}
 
-		/*for(int i = 2; i < N+1; i++)
-		{
-			a = dx[i]/(fabs(u[i][1]) + c[i]);
-			if(a < mws) {
-				mws = a;
-			}
-		}
-
-		dt = cfl*mws;*/
-
 		//std::cout << "Euler1dExplicit: run(): Computed dt" << std::endl;
 
 		// NOTE: moved apply_boundary_conditions() to the top of the inner loop
 		for(istage = 0; istage < temporalOrder; istage++)
 		{
 			// apply BCs
-			{
-				apply_boundary_conditions();
-			}
+			apply_boundary_conditions();
 			
 			//std::cout << "Euler1dExplicit: run():  Applied BCs" << std::endl;
 
@@ -150,8 +144,9 @@ void run_unsteady(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExp
 
 			//cslope->compute_slopes();
 
-			rec->compute_face_values();
-			//std::cout << "Euler1dExplicit: run():  Computed face values" << std::endl;
+			// compute face values of primitive variables
+			compute_MUSCLReconstruction(N, x, u, prleft, prright, k);
+			//printf("Euler1dExplicit: run():  Computed face values\n");
 
 			compute_inviscid_fluxes_vanleer(prleft, prright, Af, fluxes, g);
 			//std::cout << "Euler1dExplicit: run():  Computed fluxes" << std::endl;
@@ -185,7 +180,7 @@ void run_unsteady(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExp
 
 	#pragma update self(u[:N+2][:NVARS], prim[:N+2][:NVARS])
 	
-	#pragma acc exit data delete(u[:N+2][:NVARS], prim[:N+2][:NVARS], x[:N+2], dx[:N+2], A[:N+2], vol[:N+2], Af[:N+1], nodes[:N+1], RKCoeffs[:temporalOrder][:3], bcvalL[:NVARS], bcvalR[:NVARS], bcL, bcR, g, N, cfl, dudx[:N+2][:NVARS], res[:N+2][:NVARS], fluxes[:N+1][:NVARS], prleft[:N+1][:NVARS], prright[:N+1][:NVARS], dt, mws, c[:N+2], uold[:N+2][:NVARS], ustage[:N+2][:NVARS])
+	#pragma acc exit data delete(u[:N+2][:NVARS], prim[:N+2][:NVARS], x[:N+2], dx[:N+2], A[:N+2], vol[:N+2], Af[:N+1], nodes[:N+1], RKCoeffs[:temporalOrder][:3], bcvalL[:NVARS], bcvalR[:NVARS], bcL, bcR, g, N, cfl, dudx[:N+2][:NVARS], res[:N+2][:NVARS], fluxes[:N+1][:NVARS], prleft[:N+1][:NVARS], prright[:N+1][:NVARS], dt, c[:N+2], uold[:N+2][:NVARS], ustage[:N+2][:NVARS])
 	#pragma acc exit data delete(this)
 
 	free(c);
@@ -196,7 +191,7 @@ void run_unsteady(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExp
 	free(ustage[0]);
 	free(ustage);
 
-	std::cout << "Euler1dExplicit: run(): Done. Number of time steps = " << step << ", final time = " << time << std::endl;
+	printf("Euler1dExplicit: run(): Done. Number of time steps = %d, final time = %f\n", step, time);
 }
 
 void postprocess_unsteady(const Grid *const grid, const Euler1d *const sim, const char *const outfilename)

@@ -16,8 +16,10 @@ typedef struct
 {
 	Float tol;
 	int maxiter;
-	Float mws;									///< for computing time steps
 } Euler1dSteadyExplicit;
+
+void setup_data_steady(const size_t num_cells, const int bcleft, const int bcright, const Float bcvalleft[NVARS], const Float bcvalright[NVARS], const Float domain_length, 
+		const char *const _flux, const Float _cfl, Float _tol, int max_iter, Grid *const grid, Euler1d *const sim, Euler1dSteadyExplicit *const tsim);
 
 void run_steady(const Grid *const grid, Euler1d *const sim, Euler1dSteadyExplicit *const tsim);
 

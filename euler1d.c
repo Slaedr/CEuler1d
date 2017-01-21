@@ -1,118 +1,142 @@
-#include "1deuler.hpp"
+#include "explicitunsteady.h"
+#include "explicitsteady.h"
 
 int main(int argc, char* argv[])
 {
 	if(argc < 2)
 	{
-		std::cout << "Euler1d needs a configuration file name. Quitting.\n";
+		printf("Euler1d needs a configuration file name. Quitting.\n");
 		return -1;
 	}
 
-	std::string confile(argv[1]);
-	std::ifstream conf(confile);
+	char* confile = argv[1];
+	FILE* conf = fopen(confile, "r");
 
 	int leftbc, rightbc, temporal_order, N, areatype, maxiter;
-	std::vector<double> leftbv(NVARS,0), rightbv(NVARS,0), areas;
-	std::string inv_flux, areafile, outputfile, simtype, slope_scheme, rec_scheme, limiter, rkfile, dum;
-	double cfl, f_time, L, tol;
+	Float leftbv[NVARS], rightbv[NVARS], *areas;
+	char *inv_flux, *areafile, *outputfile, *simtype, *slope_scheme, *rec_scheme, *limiter, *rkfile, *dum;
+	Float cfl, f_time, L, tol;
 
-	conf >> dum; conf >> simtype;
-	if(simtype == "unsteady")
+	fscanf(conf, "%s", dum); fscanf(conf, "%s",simtype);
+	if(strcmp(simtype,"unsteady"))
 	{
-		conf >> dum; conf >> outputfile;
-		conf >> dum; conf >> N;
-		conf >> dum; conf >> L;
-		conf >> dum; conf >> leftbc;
-		conf >> dum; conf >> rightbc;
-		conf >> dum;
+		fscanf(conf, "%s", dum); fscanf(conf, "%s",outputfile);
+		fscanf(conf, "%s", dum); fscanf(conf, "%d",&N);
+		fscanf(conf, "%s", dum); fscanf(conf, "%f",&L);
+		fscanf(conf, "%s", dum); fscanf(conf, "%d",&leftbc);
+		fscanf(conf, "%s", dum); fscanf(conf, "%d",&rightbc);
+		fscanf(conf, "%s", dum);
 		for(int i = 0; i < NVARS; i++)
-			conf >> leftbv[i];
-		conf >> dum;
+			fscanf(conf, "%f",&leftbv[i]);
+		fscanf(conf, "%s", dum);
 		for(int i = 0; i < NVARS; i++)
-			conf >> rightbv[i];
-		conf >> dum; conf >> cfl;
-		conf >> dum; conf >> inv_flux;
-		conf >> dum; conf >> slope_scheme;
-		conf >> dum; conf >> rec_scheme;
-		conf >> dum; conf >> limiter;
-		conf >> dum; conf >> f_time;
-		conf >> dum; conf >> temporal_order;
-		conf >> dum; conf >> rkfile;
-		conf >> dum; conf >> areatype;
+			fscanf(conf, "%f",&rightbv[i]);
+		fscanf(conf, "%s", dum); fscanf(conf, "%f",&cfl);
+		fscanf(conf, "%s", dum); fscanf(conf, "%s",inv_flux);
+		fscanf(conf, "%s", dum); fscanf(conf, "%s",slope_scheme);
+		fscanf(conf, "%s", dum); fscanf(conf, "%s",rec_scheme);
+		fscanf(conf, "%s", dum); fscanf(conf, "%s",limiter);
+		fscanf(conf, "%s", dum); fscanf(conf, "%f",&f_time);
+		fscanf(conf, "%s", dum); fscanf(conf, "%d",&temporal_order);
+		fscanf(conf, "%s", dum); fscanf(conf, "%s",rkfile);
+		fscanf(conf, "%s", dum); fscanf(conf, "%d",&areatype);
 		if(areatype == 1)
 		{
-			areas.resize(N);
-			conf >> dum; conf >> areafile;
-			std::ifstream areaf(areafile);
+			areas = (Float*)malloc(N*sizeof(Float));
+			fscanf(conf, "%s", dum); fscanf(conf, "%s",areafile);
+			FILE* areaf = fopen(areafile,"r");
 			for(int i = 0; i < N; i++)
 			{
-				areaf >> areas[i];
+				fscanf(areaf, "%f", &areas[i]);
 			}
-			areaf.close();
+			fclose(areaf);
 		}
 		else
 		{
-			areas.resize(1);
+			areas = (Float*)malloc(sizeof(Float));
 			areas[0] = 1.0;
 		}
 	
-		std::vector<double> plist;
+		Float *plist;
 
-		std::cout << "Unsteady: " << N << " " << L << " " << leftbc << " " << rightbc << " " << inv_flux << " " << cfl << " " << f_time << " " << temporal_order << std::endl;
+		printf("Unsteady: %d, %f, %d, %d, %s, %f, %f, %d\n", N, L, leftbc, rightbc, inv_flux, cfl, f_time, temporal_order);
 
-		Euler1dExplicit prob(N, L, leftbc, rightbc, leftbv, rightbv, cfl, inv_flux, slope_scheme, rec_scheme, limiter, f_time, temporal_order, rkfile);
-		prob.generate_mesh(0,plist);
-		prob.set_area(0,areas);
+		Grid* grid = (Grid*)malloc(sizeof(Grid));
+		Euler1dUnsteadyExplicit* tsim = (Euler1dUnsteadyExplicit*)malloc(sizeof(Euler1dUnsteadyExplicit));
+		Euler1d* sim = (Euler1d*)malloc(sizeof(Euler1d));
 
-		prob.run();
+		setup_data_unsteady(N, leftbc, rightbc, leftbv, rightbv, L, inv_flux, cfl, f_time, temporal_order, rkfile, grid, sim, tsim);
+		generate_mesh(0,plist,grid);
+		set_area(0,areas,grid,sim);
 
-		prob.postprocess(outputfile);
+		run_unsteady(grid, sim, tsim);
+
+		postprocess_unsteady(grid, sim, outputfile);
+
+		finalize(grid,sim);
+		finalize_unsteady(tsim);
+		free(grid); free(sim); free(tsim);
+		free(areas);
 	}
 	else
 	{
-		conf >> dum; conf >> outputfile;
-		conf >> dum; conf >> N;
-		conf >> dum; conf >> L;
-		conf >> dum; conf >> leftbc;
-		conf >> dum; conf >> rightbc;
-		conf >> dum;
+		fscanf(conf, "%s", dum); fscanf(conf, "%s",outputfile);
+		fscanf(conf, "%s", dum); fscanf(conf, "%d",&N);
+		fscanf(conf, "%s", dum); fscanf(conf, "%f",&L);
+		fscanf(conf, "%s", dum); fscanf(conf, "%d",&leftbc);
+		fscanf(conf, "%s", dum); fscanf(conf, "%d",&rightbc);
+		fscanf(conf, "%s", dum);
 		for(int i = 0; i < NVARS; i++)
-			conf >> leftbv[i];
-		conf >> dum;
+			fscanf(conf, "%f",&leftbv[i]);
+		fscanf(conf, "%s", dum);
 		for(int i = 0; i < NVARS; i++)
-			conf >> rightbv[i];
-		conf >> dum; conf >> cfl;
-		conf >> dum; conf >> inv_flux;
-		conf >> dum; conf >> slope_scheme;
-		conf >> dum; conf >> rec_scheme;
-		conf >> dum; conf >> limiter;
-		conf >> dum; conf >> tol;
-		conf >> dum; conf >> maxiter;
-		conf >> dum; conf >> areatype;
+			fscanf(conf, "%f",&rightbv[i]);
+		fscanf(conf, "%s", dum); fscanf(conf, "%f",&cfl);
+		fscanf(conf, "%s", dum); fscanf(conf, "%s",inv_flux);
+		fscanf(conf, "%s", dum); fscanf(conf, "%s",slope_scheme);
+		fscanf(conf, "%s", dum); fscanf(conf, "%s",rec_scheme);
+		fscanf(conf, "%s", dum); fscanf(conf, "%s",limiter);
+		fscanf(conf, "%s", dum); fscanf(conf, "%f",&tol);
+		fscanf(conf, "%s", dum); fscanf(conf, "%d",&maxiter);
+		fscanf(conf, "%s", dum); fscanf(conf, "%d",&areatype);
 		if(areatype != 0)
 		{
-			areas.resize(N);
-			conf >> dum; conf >> areafile;
-			std::ifstream areaf(areafile);
+			areas = (Float*)malloc(N*sizeof(Float));
+			fscanf(conf, "%s", dum); fscanf(conf, "%s",areafile);
+			FILE* areaf = fopen(areafile, "r");
 			for(int i = 0; i < N; i++)
 			{
-				areaf >> areas[i];
+				fscanf(areaf, "%f", &areas[i]);
 			}
-			areaf.close();
+			fclose(areaf);
+		}
+		else
+		{
+			areas = (Float*)malloc(sizeof(Float));
+			areas[0] = 1.0;
 		}
 		
-		std::vector<double> plist;
+		Float *plist;
 
-		Euler1dSteadyExplicit prob(N, L, leftbc, rightbc, leftbv, rightbv, cfl, inv_flux, slope_scheme, rec_scheme, limiter, tol, maxiter);
-		prob.generate_mesh(0,plist);
-		prob.set_area(areatype,areas);
-		std::cout << N << " " << L << " " << leftbc << " " << rightbc << " " << inv_flux << " " << cfl << " " << tol << " " << maxiter << std::endl;
+		Grid* grid = (Grid*)malloc(sizeof(Grid));
+		Euler1dSteadyExplicit* tsim = (Euler1dSteadyExplicit*)malloc(sizeof(Euler1dUnsteadyExplicit));
+		Euler1d* sim = (Euler1d*)malloc(sizeof(Euler1d));
 
-		prob.run();
+		setup_data_steady(N, leftbc, rightbc, leftbv, rightbv, L, inv_flux, cfl, tol, maxiter, grid, sim, tsim);
+		generate_mesh(0,plist,grid);
+		set_area(areatype,areas,grid,sim);
+		printf("Simulation parameters: %d, %f, %d, %d, %s, %f, %f, %d\n", N, L, leftbc, rightbc, inv_flux, cfl, tol, maxiter);
 
-		prob.postprocess(outputfile);
+		run_steady(grid, sim, tsim);
+
+		postprocess_steady(grid, sim, outputfile);
+		
+		finalize(grid,sim);
+		free(grid); free(sim); free(tsim);
+		free(areas);
 	}
-	conf.close();
+
+	fclose(conf);
 
 	return 0;
 }
