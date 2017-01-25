@@ -6,46 +6,46 @@
 
 #include "reconstruction.h"
 
-void compute_MUSCLReconstruction(const size_t N, Float const *const x, Float const *const *const u, Float * const * const uleft, 
-		Float * const * const uright, const Float k)
-
+/* NOTE: Check this if code breaks!
+ */
+void compute_MUSCLReconstruction(const Grid *const grid, Euler1d *const sim)
 {
 	// interior faces
-	#pragma acc parallel present(uleft, uright, u, x, lim, k, N) device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH)
+	#pragma acc parallel present(grid, sim) device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH)
 	{
 		#pragma acc loop gang worker vector 
-		for(size_t i = 1; i <= N-1; i++)
+		for(size_t i = 1; i <= grid->N-1; i++)
 		{
 			Float denL, denR, num, rL, rR;
 			
 			#pragma acc loop seq
 			for(size_t j = 0; j < NVARS; j++)
 			{
-				denL = u[i][j]-u[i-1][j];
-				denR = u[i+2][j]-u[i+1][j];
-				num = u[i+1][j]-u[i][j];
+				denL = sim->prim[i][j]-sim->prim[i-1][j];
+				denR = sim->prim[i+2][j]-sim->prim[i+1][j];
+				num = sim->prim[i+1][j]-sim->prim[i][j];
 
 				if(fabs(denL) > ZERO_TOL*10)
 				{
 					rL = num/denL;
-					uleft[i][j] = u[i][j] + 0.25*vanalbada_limiter_function(rL) * ((1.0+(k))*num + (1.0-(k))*denL);
+					sim->prleft[i][j] = sim->prim[i][j] + 0.25*vanalbada_limiter_function(rL) * ((1.0+(sim->muscl_k))*num + (1.0-(sim->muscl_k))*denL);
 				}
 				else
-					uleft[i][j] = u[i][j];
+					sim->prleft[i][j] = sim->prim[i][j];
 
 				if(fabs(denR) > ZERO_TOL*10)
 				{
 					rR = num/denR;
-					uright[i][j] = u[i+1][j] - 0.25*vanalbada_limiter_function(rR) * ((1.0+(k))*num + (1.0-(k))*denR);
+					sim->prright[i][j] = sim->prim[i+1][j] - 0.25*vanalbada_limiter_function(rR) * ((1.0+(sim->muscl_k))*num + (1.0-(sim->muscl_k))*denR);
 				}
 				else
-					uright[i][j] = u[i+1][j];
+					sim->prright[i][j] = sim->prim[i+1][j];
 			}
 		}
 	}
 	
 	// boundaries
-	#pragma acc parallel present(uleft, uright, u, x, lim, k, N) num_gangs(1)
+	#pragma acc parallel present(grid, sim) num_gangs(1)
 	{
 		Float denL, denR, num, rL, rR;
 		Float slope, cc, um0, xm0, umN, xmN;
@@ -55,57 +55,57 @@ void compute_MUSCLReconstruction(const size_t N, Float const *const x, Float con
 		{
 			// extrapolate variables
 
-			slope = (u[1][j] - u[0][j])/(x[1]-x[0]);
-			cc = u[0][j] - (u[1][j]-u[0][j])/(x[1]-x[0])*x[0];
-			xm0 = x[0] - (x[1]-x[0]);
+			slope = (sim->prim[1][j] - sim->prim[0][j])/(grid->x[1]-grid->x[0]);
+			cc = sim->prim[0][j] - (sim->prim[1][j]-sim->prim[0][j])/(grid->x[1]-grid->x[0])*grid->x[0];
+			xm0 = grid->x[0] - (grid->x[1]-grid->x[0]);
 			um0 = slope*xm0 + cc;
 
-			slope = (u[N+1][j] - u[N][j])/(x[N+1]-x[(N)]);
-			cc = u[N][j] - (u[N+1][j]-u[N][j])/(x[N+1]-x[N])*x[N];
-			xmN = x[N+1] + x[N]-x[N-1];
+			slope = (sim->prim[grid->N+1][j] - sim->prim[grid->N][j])/(grid->x[grid->N+1]-grid->x[(grid->N)]);
+			cc = sim->prim[grid->N][j] - (sim->prim[grid->N+1][j]-sim->prim[grid->N][j])/(grid->x[grid->N+1]-grid->x[grid->N])*grid->x[grid->N];
+			xmN = grid->x[grid->N+1] + grid->x[grid->N]-grid->x[grid->N-1];
 			umN = slope*xmN + cc;
 
 			// left
-			denL = u[0][j] - um0;
-			denR = u[2][j]-u[1][j];
-			num = u[1][j]-u[0][j];
+			denL = sim->prim[0][j] - um0;
+			denR = sim->prim[2][j]-sim->prim[1][j];
+			num = sim->prim[1][j]-sim->prim[0][j];
 
 			if(fabs(denL) > ZERO_TOL*10)
 			{
 				rL = num/denL;
-				uleft[0][j] = u[0][j] + 0.25*vanalbada_limiter_function(rL) * ((1.0+(k))*num + (1.0-(k))*denL);
+				sim->prleft[0][j] = sim->prim[0][j] + 0.25*vanalbada_limiter_function(rL) * ((1.0+(sim->muscl_k))*num + (1.0-(sim->muscl_k))*denL);
 			}
 			else
-				uleft[0][j] = u[0][j];
+				sim->prleft[0][j] = sim->prim[0][j];
 
 			if(fabs(denR) > ZERO_TOL*10)
 			{
 				rR = num/denR;
-				uright[0][j] = u[1][j] - 0.25*vanalbada_limiter_function(rR) * ((1.0+(k))*num + (1.0-(k))*denR);
+				sim->prright[0][j] = sim->prim[1][j] - 0.25*vanalbada_limiter_function(rR) * ((1.0+(sim->muscl_k))*num + (1.0-(sim->muscl_k))*denR);
 			}
 			else
-				uright[0][j] = u[1][j];
+				sim->prright[0][j] = sim->prim[1][j];
 			
 			// right
-			denL = u[N][j]-u[N-1][j];
-			denR = umN - u[N+1][j];
-			num = u[N+1][j]-u[N][j];
+			denL = sim->prim[grid->N][j]-sim->prim[grid->N-1][j];
+			denR = umN - sim->prim[grid->N+1][j];
+			num = sim->prim[grid->N+1][j]-sim->prim[grid->N][j];
 
 			if(fabs(denL) > ZERO_TOL*10)
 			{
 				rL = num/denL;
-				uleft[N][j] = u[N][j] + 0.25*vanalbada_limiter_function(rL) * ((1.0+k)*num + (1.0-k)*denL);
+				sim->prleft[grid->N][j] = sim->prim[grid->N][j] + 0.25*vanalbada_limiter_function(rL) * ((1.0+sim->muscl_k)*num + (1.0-sim->muscl_k)*denL);
 			}
 			else
-				uleft[N][j] = u[N][j];
+				sim->prleft[grid->N][j] = sim->prim[grid->N][j];
 
 			if(fabs(denR) > ZERO_TOL*10)
 			{
 				rR = num/denR;
-				uright[N][j] = u[N+1][j] - 0.25*vanalbada_limiter_function(rR) * ((1.0+k)*num + (1.0-k)*denR);
+				sim->prright[grid->N][j] = sim->prim[grid->N+1][j] - 0.25*vanalbada_limiter_function(rR) * ((1.0+sim->muscl_k)*num + (1.0-sim->muscl_k)*denR);
 			}
 			else
-				uright[N][j] = u[N+1][j];
+				sim->prright[grid->N][j] = sim->prim[grid->N+1][j];
 		}
 	}
 }

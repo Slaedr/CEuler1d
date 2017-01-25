@@ -11,6 +11,10 @@
 #include "1deuler.h"
 #endif
 
+#ifndef __RECONSTRUCTION_H
+#include "reconstruction.h"
+#endif
+
 /// Explicit RK solver for steady-state 1D Euler
 typedef struct 
 {

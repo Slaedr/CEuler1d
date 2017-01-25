@@ -35,7 +35,7 @@ void run_steady(const Grid *const grid, Euler1d *const sim, Euler1dSteadyExplici
 	int pn = grid->N/4;
 	for(int i = 0; i <= pn; i++)
 	{
-		sim->u[i][0] = pin/(R*Tin);
+		sim->u[i][0] = pin/(GAS_CONSTANT*Tin);
 		cin = sqrt(sim->g*pin/sim->u[i][0]);
 		sim->u[i][1] = sim->u[i][0]*M*cin;
 		sim->u[i][2] = pin/(sim->g-1.0)+0.5*sim->u[i][1]*M*cin;
@@ -47,7 +47,7 @@ void run_steady(const Grid *const grid, Euler1d *const sim, Euler1dSteadyExplici
 	// set last cells according to exit conditions
 	for(int i = grid->N+1; i <= grid->N+1; i++)
 	{
-		sim->u[i][0] = pex/(R*tex);
+		sim->u[i][0] = pex/(GAS_CONSTANT*tex);
 		cex = sqrt(sim->g*pex/sim->u[i][0]);
 		vex = Mex*cex;
 		sim->u[i][1] = sim->u[i][0]*vex;
@@ -67,7 +67,7 @@ void run_steady(const Grid *const grid, Euler1d *const sim, Euler1dSteadyExplici
 		}
 	}
 
-	Float** u = sim->u;
+	/*Float** u = sim->u;
 	Float** prim = sim->prim;
 	Float** dudx = sim->dudx;
 	Float** res = sim->res;
@@ -90,59 +90,60 @@ void run_steady(const Grid *const grid, Euler1d *const sim, Euler1dSteadyExplici
 	Float cfl = sim->cfl;
 	Float* pcfl = &(sim->cfl);	// pointer to CFL
 	Float* pg = &(sim->g);		// pointer to g
-	
+	*/
+
 	// Start time loop
 	while(resnorm/resnorm0 > tsim->tol && step < tsim->maxiter)
 	{
 		int i,j;
-		for(i = 0; i < N+2; i++)
+		for(i = 0; i < grid->N+2; i++)
 		{
 			for(j = 0; j < NVARS; j++)
 			{
-				uold[i][j] = u[i][j];
-				res[i][j] = 0;
+				uold[i][j] = sim->u[i][j];
+				sim->res[i][j] = 0;
 			}
 		}
 			
-		compute_MUSCLReconstruction(N, x, u, prleft, prright, k);
+		compute_MUSCLReconstruction(grid, sim);
 		//printf("Euler1dExplicit: run():  Computed face values\n");
 
-		compute_inviscid_fluxes_vanleer(prleft, prright, Af, fluxes, g);
+		compute_inviscid_fluxes_vanleer(grid, sim);
 		//std::cout << "Euler1dExplicit: run():  Computed fluxes" << std::endl;
 		
-		update_residual(fluxes, res);
+		update_residual(grid, sim);
 
-		compute_source_term(u,res,Af,pg);
+		compute_source_term(grid, sim);
 		//std::cout << "Euler1dExplicit: run():  Computed source terms" << std::endl;
 
 		// find time step as dt = CFL * min{ dx[i]/(|v[i]|+c[i]) }
 		
-		for(i = 1; i < N+1; i++)
+		for(i = 1; i < grid->N+1; i++)
 		{
-			Float c = sqrt( g*(g-1.0) * (u[i][2] - 0.5*u[i][1]*u[i][1]/u[i][0]) / u[i][0] );
-			dt[i] = cfl * dx[i]/(fabs(u[i][1]) + c);
+			Float c = sqrt( sim->g*(sim->g-1.0) * (sim->u[i][2] - 0.5*sim->u[i][1]*sim->u[i][1]/sim->u[i][0]) / sim->u[i][0] );
+			dt[i] = sim->cfl * grid->dx[i]/(fabs(sim->u[i][1]) + c);
 		}
 
 		resnorm = 0;
-		for(i = 1; i <= N; i++)
-			resnorm += res[i][0]*res[i][0]*dx[i];
+		for(i = 1; i <= grid->N; i++)
+			resnorm += sim->res[i][0]*sim->res[i][0]*grid->dx[i];
 		resnorm = sqrt(resnorm);
 		if(step==0)
 			resnorm0 = resnorm;
 
 		// RK step
-		for(i = 1; i < N+1; i++)
+		for(i = 1; i < grid->N+1; i++)
 		{
 			for(j = 0; j < NVARS; j++)
-				u[i][j] = uold[i][j] + dt[i]/vol[i]*res[i][j];
+				sim->u[i][j] = uold[i][j] + dt[i]/sim->vol[i]*sim->res[i][j];
 
-			prim[i][0] = u[i][0];
-			prim[i][1] = u[i][1]/u[i][0];
-			prim[i][2] = (g-1.0)*(u[i][2] - 0.5*u[i][1]*prim[i][1]);
+			sim->prim[i][0] = sim->u[i][0];
+			sim->prim[i][1] = sim->u[i][1]/sim->u[i][0];
+			sim->prim[i][2] = (sim->g-1.0)*(sim->u[i][2] - 0.5*sim->u[i][1]*sim->prim[i][1]);
 		}
 
 		// apply BCs
-		apply_boundary_conditions(sim);
+		apply_boundary_conditions(grid,sim);
 
 		if(step % 10 == 0)
 		{

@@ -1,4 +1,4 @@
-#ifndef __DEFITIONS_H
+#ifndef __DEFINITIONS_H
 #define __DEFINITIONS_H
 
 #include <stdio.h>
@@ -23,14 +23,12 @@ const Float k = 1.0/3.0;
 
 /// Specific gas constant of air
 //const Float R = 287.1;
-#define R 1716.0
-
-#define Cv R/(g-1.0)
+#define GAS_CONSTANT 1716.0
 
 /// Constant for MUSCL reconstruction
-const Float muscl_k = 1.0/3.0;
+//const Float muscl_k = 1.0/3.0;
 
-void matprint(Float const *const *const mat);
+void matprint(Float const *const *const mat, size_t m, size_t n);
 
 // OpenACC constants
 #define NVIDIA_VECTOR_LENGTH 32

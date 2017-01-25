@@ -7,8 +7,8 @@ void matprint(Float const *const *const mat, size_t m, size_t n)
 	{
 		for(int j = 0; j < n; j++)
 			printf("%d\t", mat[i][j]);
-		printf('\n');
+		printf("\n");
 	}
-	printf('\n');
+	printf("\n");
 }
 

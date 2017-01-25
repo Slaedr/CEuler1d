@@ -65,7 +65,7 @@ void run_unsteady(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExp
 	/*for(int i = 0; i < grid->ncell; i++)
 		uold[i] = (Float*)malloc(NVARS*sizeof(Float));*/
 
-	Float** u = sim->u;
+	/*Float** u = sim->u;
 	Float** prim = sim->prim;
 	Float** RKCoeffs = tsim->RKCoeffs;
 	Float** dudx = sim->dudx;
@@ -91,11 +91,12 @@ void run_unsteady(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExp
 	Float* pg = &(sim->g);		// pointer to g
 	//int* N = &(grid->N);
 	//Float* cfl = &(sim->cfl);
+	*/
 	
 #pragma acc enter data copyin(grid[:1], sim[:1], tsim[:1])
-#pragma acc enter data copyin(u[:N+2][:NVARS], prim[:N+2][:NVARS], x[:N+2], dx[:N+2], A[:N+2], vol[:N+2], Af[:N+1], nodes[:N+1], RKCoeffs[:temporalOrder][:3])
-#pragma acc enter data copyin(bcvalL[:NVARS], bcvalR[:NVARS], bcL[:1], bcR[:1], g, pg[:1], cfl, pcfl[:1], dt)
-#pragma acc enter data create(dudx[:N+2][:NVARS], res[:N+2][:NVARS], fluxes[:N+1][:NVARS], prleft[:N+1][:NVARS], prright[:N+1][:NVARS], istage, c[:N+2], uold[:N+2][:NVARS], ustage[:N+2][:NVARS])
+#pragma acc enter data copyin(sim->u[:N+2][:NVARS], sim->prim[:N+2][:NVARS], grid->x[:N+2], grid->dx[:N+2], sim->A[:N+2], sim->vol[:N+2], sim->Af[:N+1], grid->nodes[:N+1])
+#pragma acc enter data copyin(sim->bcvalL[:NVARS], sim->bcvalR[:NVARS], sim->bcL, sim->bcR, sim->g, sim->cfl, dt, tsim->RKCoeffs[:temporalOrder][:3])
+#pragma acc enter data create(sim->dudx[:N+2][:NVARS], sim->res[:N+2][:NVARS], sim->fluxes[:N+1][:NVARS], sim->prleft[:N+1][:NVARS], sim->prright[:N+1][:NVARS], istage, c[:N+2], uold[:N+2][:NVARS], ustage[:N+2][:NVARS])
 
 	while(time < tsim->ftime)
 	{
@@ -106,21 +107,21 @@ void run_unsteady(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExp
 		//std::cout << "Euler1dExplicit: run(): Updated self" << std::endl;
 
 		#pragma acc parallel loop present(u[:N+2][:NVARS], uold[:N+2][:NVARS]) gang worker vector device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH)
-		for(int i = 0; i < N+2; i++)
+		for(int i = 0; i < grid->N+2; i++)
 		{
 			for(int j = 0; j < NVARS; j++)
 			{
-				uold[i][j] = u[i][j];
+				uold[i][j] = sim->u[i][j];
 			}
 		}
 		//std::cout << "Euler1dExplicit: run(): Set uold" << std::endl;
 		
 		// find time step as dt = CFL * min{ dx[i]/(|v[i]|+c[i]) }
 		
-		#pragma acc parallel loop present(u, c, cfl, dt, g) reduction(min:dt) gang worker vector device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH)
-		for(int i = 1; i < N+1; i++)
+		#pragma acc parallel loop present(sim, grid, c, dt) reduction(min:dt) gang worker vector device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH)
+		for(int i = 1; i < grid->N+1; i++)
 		{
-			c[i] = cfl*dx[i]/(fabs(u[i][1]) + sqrt(g*(g-1.0) * (u[i][2] - 0.5*u[i][1]*u[i][1]/u[i][0]) / u[i][0]));
+			c[i] = sim->cfl*grid->dx[i]/(fabs(sim->u[i][1]) + sqrt(sim->g*(sim->g-1.0) * (sim->u[i][2] - 0.5*sim->u[i][1]*sim->u[i][1]/sim->u[i][0]) / sim->u[i][0]));
 			dt = fmin(dt, c[i]);
 		}
 
@@ -130,17 +131,17 @@ void run_unsteady(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExp
 		for(istage = 0; istage < tsim->temporalOrder; istage++)
 		{
 			// apply BCs
-			apply_boundary_conditions(sim);
+			apply_boundary_conditions(grid,sim);
 			
 			//std::cout << "Euler1dExplicit: run():  Applied BCs" << std::endl;
 
 			#pragma acc parallel loop present(u, ustage, res) gang worker vector device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH)
-			for(int i = 0; i < N+2; i++)
+			for(int i = 0; i < grid->N+2; i++)
 			{
 				for(int j = 0; j < NVARS; j++)
 				{
-					ustage[i][j] = u[i][j];
-					res[i][j] = 0;
+					ustage[i][j] = sim->u[i][j];
+					sim->res[i][j] = 0;
 				}
 			}
 			
@@ -149,27 +150,29 @@ void run_unsteady(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExp
 			//cslope->compute_slopes();
 
 			// compute face values of primitive variables
-			compute_MUSCLReconstruction(N, x, u, prleft, prright, k);
+			//compute_MUSCLReconstruction(N, x, u, prleft, prright, k);
+			compute_MUSCLReconstruction(grid, sim);
 			//printf("Euler1dExplicit: run():  Computed face values\n");
 
-			compute_inviscid_fluxes_vanleer(prleft, prright, Af, fluxes, g);
+			compute_inviscid_fluxes_vanleer(grid, sim);
 			//std::cout << "Euler1dExplicit: run():  Computed fluxes" << std::endl;
 			
-			update_residual(fluxes, res);
+			update_residual(grid, sim);
 
-			compute_source_term(u,res,Af,pg);
+			compute_source_term(grid, sim);
 			//std::cout << "Euler1dExplicit: run():  Computed source terms" << std::endl;
 
 			// RK stage
-			#pragma acc parallel loop present(prim, u, uold, ustage, res, vol, dt, RKCoeffs, g) gang worker vector device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH)
-			for(int i = 1; i < N+1; i++)
+			//#pragma acc parallel loop present(prim, u, uold, ustage, res, vol, dt, RKCoeffs, g) gang worker vector device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH)
+			#pragma acc parallel loop present(sim, tsim) gang worker vector device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH)
+			for(int i = 1; i < grid->N+1; i++)
 			{
 				for(int j = 0; j < NVARS; j++)
-					u[i][j] = RKCoeffs[istage][0]*uold[i][j] + RKCoeffs[istage][1]*ustage[i][j] + RKCoeffs[istage][2]*dt/vol[i]*res[i][j];
+					sim->u[i][j] = tsim->RKCoeffs[istage][0]*uold[i][j] + tsim->RKCoeffs[istage][1]*ustage[i][j] + tsim->RKCoeffs[istage][2]*dt/sim->vol[i]*sim->res[i][j];
 
-				prim[i][0] = u[i][0];
-				prim[i][1] = u[i][1]/u[i][0];
-				prim[i][2] = (g-1.0)*(u[i][2] - 0.5*u[i][1]*prim[i][1]);
+				sim->prim[i][0] = sim->u[i][0];
+				sim->prim[i][1] = sim->u[i][1]/sim->u[i][0];
+				sim->prim[i][2] = (sim->g-1.0)*(sim->u[i][2] - 0.5*sim->u[i][1]*sim->prim[i][1]);
 			}
 
 		}

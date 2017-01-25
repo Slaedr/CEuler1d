@@ -10,6 +10,7 @@ void setup(Grid *const grid, Euler1d *const sim, const size_t num_cells, const i
 	grid->x = (Float*)malloc((grid->N+2)*sizeof(Float));
 	grid->dx = (Float*)malloc((grid->N+2)*sizeof(Float));
 	grid->nodes = (Float*)malloc((grid->N+1)*sizeof(Float));
+	grid->domlen = domain_length;
 
 	sim->A = (Float*)malloc((grid->N+2)*sizeof(Float));
 	sim->Af = (Float*)malloc((grid->N+1)*sizeof(Float));
@@ -31,7 +32,6 @@ void setup(Grid *const grid, Euler1d *const sim, const size_t num_cells, const i
 	sim->prright[0] = (Float*)malloc((grid->N+1)*NVARS*sizeof(Float));
 
 	sim->cfl = _cfl;
-	sim->domlen = domain_length;
 	sim->bcL = bcleft;
 	sim->bcR = bcright;
 
@@ -60,9 +60,13 @@ void setup(Grid *const grid, Euler1d *const sim, const size_t num_cells, const i
 
 	sim->fluxstr = (char*)malloc(10*sizeof(char));
 	strcpy(sim->fluxstr, _flux);
+
+	sim->g = 1.4;
+	sim->muscl_k = 1.0/3.0;
+	sim->Cv = GAS_CONSTANT/(sim->g-1.0);
 }
 
-void finalize(Grid *const grid, Euler1d *const sim);
+void finalize(Grid *const grid, Euler1d *const sim)
 {
 	free(sim->fluxstr);
 	
@@ -98,7 +102,7 @@ void generate_mesh(int type, const Float *const pointlist, Grid *const grid)
 	if(type == 0)
 	{
 		grid->nodes[0] = 0.0;
-		Float delx = sim->domlen/grid->N;
+		Float delx = grid->domlen/grid->N;
 		grid->x[0] = -delx/2.0;
 		grid->dx[0] = delx;
 		for(int i = 1; i < grid->N+2; i++)
@@ -142,7 +146,7 @@ void set_area(int type, const Float *const cellCenteredAreas, const Grid *const 
 
 		// maybe assign ghost cell areas by linear extrapolation?
 		sim->A[0] = sim->A[1];
-		sim->A[N+1] = sim->A[grid->N];
+		sim->A[grid->N+1] = sim->A[grid->N];
 	}
 
 	/** Get interface areas as inverse-distance weighted averages of cell-centered areas so that they are exact for linear profiles.
@@ -200,7 +204,7 @@ void update_residual(const Grid *const grid, Euler1d *const sim)
 		for(int i = 1; i < grid->N+1; i++)
 		{
 			for(int j = 0; j < NVARS; j++)
-				sim->res[i][j] += sim->flux[i-1][j] - sim->flux[i][j];
+				sim->res[i][j] += sim->fluxes[i-1][j] - sim->fluxes[i][j];
 		}
 	}
 }
@@ -254,15 +258,17 @@ void compute_source_term(const Grid *const grid, Euler1d *const sim)
 	}
 }
 
-void apply_boundary_conditions(Euler1d *const sim)
+void apply_boundary_conditions(const Grid *const grid, Euler1d *const sim)
 {
+	// NOTE: the following pointers are not restricted
 	Float** u = sim->u;
 	Float** prim = sim->prim;
 	Float* bcvalL = sim->bcvalL;
 	Float* bcvalR = sim->bcvalR;
 	int* bcL = &(sim->bcL);
 	int* bcR = &(sim->bcR);
-	#pragma acc parallel present(sim, prim[:N+2][:NVARS], u[:N+2][:NVARS], bcvalL[:NVARS], bcvalR[:NVARS], bcL[:1], bcR[:1]) num_gangs(1)
+
+	#pragma acc parallel present(grid, sim, prim[:N+2][:NVARS], u[:N+2][:NVARS], bcvalL[:NVARS], bcvalR[:NVARS], bcL[:1], bcR[:1]) num_gangs(1)
 	{
 		if(*bcL == 0)
 		{
@@ -286,12 +292,12 @@ void apply_boundary_conditions(Euler1d *const sim)
 			{
 				// supersonic inflow
 				// get conserved variables from pt, Tt and M
-				//Float astar = 2*g*(g-1.0)/(g+1.0)*Cv*bcvalL[1];
+				//Float astar = 2*g*(g-1.0)/(g+1.0)*sim->Cv*bcvalL[1];
 				Float T = bcvalL[1]/(1 + (sim->g-1.0)/2.0*bcvalL[2]*bcvalL[2]);
-				Float c = sqrt(g*R*T);
+				Float c = sqrt(sim->g*GAS_CONSTANT*T);
 				Float v = bcvalL[2]*c;
 				Float p = bcvalL[0]*pow( 1+(sim->g-1.0)/2.0*bcvalL[2]*bcvalL[2], -sim->g/(sim->g-1.0) );
-				Float rho = p/(R*T);
+				Float rho = p/(GAS_CONSTANT*T);
 				Float E = p/(sim->g-1.0) + 0.5*rho*v*v;
 				/*u[0][0] = 2*rho - u[1][0];
 				u[0][1] = 2*rho*v - u[1][1];
@@ -316,16 +322,16 @@ void apply_boundary_conditions(Euler1d *const sim)
 				pold1 = (sim->g-1)*(u[1][2] - 0.5*u[1][1]*u[1][1]/u[1][0]);
 				cold1 = sqrt( sim->g*pold1/u[1][0] );
 
-				astar = 2*sim->g*(sim->g-1.0)/(sim->g+1.0)*Cv*bcvalL[1];
-				dpdu = bcvalL[0]*sim->g/(sim->g-1.0)*pow(1.0-(sim->g-1)/(sim->g+1.0)*vold*vold/astar, 1.0/(sim->g-1.0)) * (-2.0)*(sim->g-1)/(sim->g+1.0)*vold/astar;
-				dt0 = sim->cfl*dx[0]/(fabs(vold)+cold);
-				lambda = (vold1+vold - cold1-cold)*0.5*dt0/dx[0];
+				astar = 2*sim->g*(sim->g-1.0)/(sim->g+1.0)*sim->Cv*bcvalL[1];
+				dpdu = sim->bcvalL[0]*sim->g/(sim->g-1.0)*pow(1.0-(sim->g-1)/(sim->g+1.0)*vold*vold/astar, 1.0/(sim->g-1.0)) * (-2.0)*(sim->g-1)/(sim->g+1.0)*vold/astar;
+				dt0 = sim->cfl*grid->dx[0]/(fabs(vold)+cold);
+				lambda = (vold1+vold - cold1-cold)*0.5*dt0/grid->dx[0];
 				du = -lambda * (pold1-pold-uold0[0]*cold*(vold1-vold)) / (dpdu-uold0[0]*cold);
 
 				v = vold + du;
 				T = bcvalL[1]*(1.0 - (sim->g-1)/(sim->g+1.0)*vold*vold/astar);
 				p = bcvalL[0]*pow(T/bcvalL[1],sim-> g/(sim->g-1.0));
-				u[0][0] = p/(R*T);
+				u[0][0] = p/(GAS_CONSTANT*T);
 				u[0][1] = u[0][0]*v;
 				u[0][2] = p/(sim->g-1.0) + 0.5*u[0][0]*v*v;
 				prim[0][0] = u[0][0];
@@ -338,40 +344,40 @@ void apply_boundary_conditions(Euler1d *const sim)
 			}
 #ifndef _OPENACC
 			else
-				std::cout << "! Euler1d: apply_boundary_conditions(): Error! Inlet is becoming outlet!" << std::endl;
+				printf("! Euler1d: apply_boundary_conditions(): Error! Inlet is becoming outlet!\n");
 #endif
 		}
 		//else std::cout << "! Euler1D: apply_boundary_conditions(): BC type not recognized!" << std::endl;
 
 		if(*bcR == 0)
 		{
-			u[N+1][0] = u[N][0];
-			u[N+1][1] = -u[N][1];
-			u[N+1][2] = u[N][2];
-			prim[N+1][0] = prim[N][0];
-			prim[N+1][1] = -prim[N][1];
-			prim[N+1][2] = prim[N][2];
+			sim->u[grid->N+1][0] = sim->u[grid->N][0];
+			u[grid->N+1][1] = -u[grid->N][1];
+			u[grid->N+1][2] = u[grid->N][2];
+			prim[grid->N+1][0] = prim[grid->N][0];
+			prim[grid->N+1][1] = -prim[grid->N][1];
+			prim[grid->N+1][2] = prim[grid->N][2];
 		}
 		else if(*bcR == 3)
 		{
 			// outflow
 			Float l1, l2, l3, cold, cold1, pold, pold1, vold, vold1, dt0, r1, r2, r3, Mold, dp, drho, dv, p;
-			Float* uold = u[N+1];
+			Float* uold = u[grid->N+1];
 			vold = uold[1]/uold[0];
-			pold = (g-1.0)*(uold[2]-0.5*uold[0]*vold*vold);
+			pold = (sim->g-1.0)*(uold[2]-0.5*uold[0]*vold*vold);
 			cold = sqrt(sim->g*pold/uold[0]);
-			vold1 = u[N][1]/u[N][0];
-			pold1 = (sim->g-1.0)*(u[N][2]-0.5*u[N][0]*vold1*vold1);
-			cold1 = sqrt(sim->g*pold1/u[N][0]);
+			vold1 = u[grid->N][1]/u[grid->N][0];
+			pold1 = (sim->g-1.0)*(u[grid->N][2]-0.5*u[grid->N][0]*vold1*vold1);
+			cold1 = sqrt(sim->g*pold1/u[grid->N][0]);
 
-			dt0 = sim->cfl*dx[N+1]/(fabs(vold)+cold);
-			l1 = (vold+vold1)*0.5*dt0/dx[N+1];
-			l2 = (vold+vold1 + cold+cold1)*0.5*dt0/dx[N+1];
-			l3 = (vold+vold1 - cold-cold1)*0.5*dt0/dx[N+1];
+			dt0 = sim->cfl*grid->dx[grid->N+1]/(fabs(vold)+cold);
+			l1 = (vold+vold1)*0.5*dt0/grid->dx[grid->N+1];
+			l2 = (vold+vold1 + cold+cold1)*0.5*dt0/grid->dx[grid->N+1];
+			l3 = (vold+vold1 - cold-cold1)*0.5*dt0/grid->dx[grid->N+1];
 
-			r1 = -l1*( u[N+1][0] - u[N][0] - 1.0/(cold*cold)*(pold - pold1));
-			r2 = -l2*( pold - pold1 + u[N+1][0]*cold*(vold - vold1));
-			r3 = -l3*( pold - pold1 - u[N+1][0]*cold*(vold - vold1));
+			r1 = -l1*( u[grid->N+1][0] - u[grid->N][0] - 1.0/(cold*cold)*(pold - pold1));
+			r2 = -l2*( pold - pold1 + u[grid->N+1][0]*cold*(vold - vold1));
+			r3 = -l3*( pold - pold1 - u[grid->N+1][0]*cold*(vold - vold1));
 			Mold = (vold+vold1)/(cold+cold1);
 
 			// check whether supersonic or subsonic
@@ -381,20 +387,20 @@ void apply_boundary_conditions(Euler1d *const sim)
 				dp = 0;
 
 			drho = r1 + dp/(cold*cold);
-			dv = (r2-dp)/(u[N+1][0]*cold);
+			dv = (r2-dp)/(u[grid->N+1][0]*cold);
 
-			u[N+1][0] += drho;
-			u[N+1][1] = u[N+1][0]*(vold + dv);
+			u[grid->N+1][0] += drho;
+			u[grid->N+1][1] = u[grid->N+1][0]*(vold + dv);
 
 			if(Mold > 1)
 				p = pold + dp;
 			else
 				p = bcvalR[0];
 
-			u[N+1][2] = p/(sim->g-1.0) + 0.5*u[N+1][0]*(vold+dv)*(vold+dv);
-			prim[N+1][0] = u[N+1][0];
-			prim[N+1][1] = vold+dv;
-			prim[N+1][2] = p;
+			u[grid->N+1][2] = p/(sim->g-1.0) + 0.5*u[grid->N+1][0]*(vold+dv)*(vold+dv);
+			prim[grid->N+1][0] = u[grid->N+1][0];
+			prim[grid->N+1][1] = vold+dv;
+			prim[grid->N+1][2] = p;
 		}
 	//else std::cout << "! Euler1D: apply_boundary_conditions(): BC type not recognized!" << std::endl;
 	}

@@ -14,8 +14,15 @@
 #include "limiters.h"
 #endif
 
+#ifndef __1DEULER_H
+#include "1deuler.h"
+#endif
+
 /// (Kernal function) Computes states at the faces
-void compute_MUSCLReconstruction(const size_t N, Float const *const x, Float const *const *const u, Float * const * const uleft, 
-		Float * const * const uright, const Float k);
+//void compute_MUSCLReconstruction(const size_t N, Float const *const x, Float const *const *const u, Float * const * const uleft, 
+//		Float * const * const uright, const Float k);
+
+/// (Kernal function) Computes states at the faces
+void compute_MUSCLReconstruction(const Grid *const grid, Euler1d *const sim);
 
 #endif

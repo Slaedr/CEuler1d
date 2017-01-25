@@ -7,12 +7,12 @@
 #ifndef __1DEULER_H
 #define __1DEULER_H
 
-#ifndef __INVISCIDFLUX_H
-#include "inviscidflux.h"
+#ifndef __DEFINITIONS_H
+#include "definitions.h"
 #endif
 
-#ifndef __RECONSTRUCTION_H
-#include "reconstruction.h"
+#ifndef __INVISCIDFLUX_H
+#include "inviscidflux.h"
 #endif
 
 typedef struct
@@ -23,12 +23,12 @@ typedef struct
 	Float* x;							///< Cell centers
 	Float* dx;							///< (1D) Size of each cell
 	Float* nodes;						///< Mesh nodes
+	Float domlen;						///< Physical length of the domain
 } Grid;
 
 /// Base struct for Euler solution processes
 typedef struct
 {
-	Float domlen;					///< Physical length of the domain
 	Float* vol;						///< (3D) Volume of each cell
 	Float* A;						///< Cross-sectional areas at cell centers
 	Float* Af;						///< Cross-sectional areas at interfaces
@@ -49,7 +49,9 @@ typedef struct
 	char* cslopestr;				///< Slope reconstruction to be used (irrelevant)
 	char* recstr;					///< Method for computation of face values of flow variables from their cell-centred values (MUSCL is used always)
 	Float cfl;						///< CFL number
+	Float Cv;						///< Specific heat at constant volume
 	Float g;						///< Adiabatic index
+	Float muscl_k;					///< MUSCL reconstruction factor (ideally, 1/3); currently set statically in setup()
 } Euler1d;
 
 /// Setup variables
@@ -89,6 +91,6 @@ void update_residual(const Grid *const grid, Euler1d *const sim);
 void compute_source_term(const Grid *const grid, Euler1d *const sim);
 
 /// (Kernel function) Find new ghost cell values
-void apply_boundary_conditions(Euler1d *const sim);
+void apply_boundary_conditions(const Grid *const grid, Euler1d *const sim);
 
 #endif

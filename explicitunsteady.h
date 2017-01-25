@@ -11,6 +11,10 @@
 #include "1deuler.h"
 #endif
 
+#ifndef __RECONSTRUCTION_H
+#include "reconstruction.h"
+#endif
+
 /// Parameters for explicit RK solver for time-dependent 1D Euler equations
 typedef struct
 {
