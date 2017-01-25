@@ -4,31 +4,31 @@ void setup(Grid *const grid, Euler1d *const sim, const size_t num_cells, const i
 		const Float _cfl, const char *const _flux)
 {
 	grid->N = num_cells;
-	grid->ncell = N+2;
-	grid->nface = N+1;
+	grid->ncell = grid->N+2;
+	grid->nface = grid->N+1;
 	
-	grid->x = (Float*)malloc((N+2)*sizeof(Float));
-	grid->dx = (Float*)malloc((N+2)*sizeof(Float));
-	grid->nodes = (Float*)malloc((N+1)*sizeof(Float));
+	grid->x = (Float*)malloc((grid->N+2)*sizeof(Float));
+	grid->dx = (Float*)malloc((grid->N+2)*sizeof(Float));
+	grid->nodes = (Float*)malloc((grid->N+1)*sizeof(Float));
 
-	sim->A = (Float*)malloc((N+2)*sizeof(Float));
-	sim->Af = (Float*)malloc((N+1)*sizeof(Float));
-	sim->vol = (Float*)malloc((N+2)*sizeof(Float));
-	sim->u = (Float**)malloc((N+2)*sizeof(Float*));
-	sim->u[0] = (Float*)malloc((N+2)*NVARS*sizeof(Float));
-	sim->prim = (Float**)malloc((N+2)*sizeof(Float*));
-	sim->prim[0] = (Float*)malloc((N+2)*NVARS*sizeof(Float));
-	sim->dudx = (Float**)malloc((N+2)*sizeof(Float*));
-	sim->dudx[0] = (Float*)malloc((N+2)*NVARS*sizeof(Float));
-	sim->res = (Float**)malloc((N+2)*sizeof(Float*));
-	sim->res[0] = (Float*)malloc((N+2)*NVARS*sizeof(Float));
+	sim->A = (Float*)malloc((grid->N+2)*sizeof(Float));
+	sim->Af = (Float*)malloc((grid->N+1)*sizeof(Float));
+	sim->vol = (Float*)malloc((grid->N+2)*sizeof(Float));
+	sim->u = (Float**)malloc((grid->N+2)*sizeof(Float*));
+	sim->u[0] = (Float*)malloc((grid->N+2)*NVARS*sizeof(Float));
+	sim->prim = (Float**)malloc((grid->N+2)*sizeof(Float*));
+	sim->prim[0] = (Float*)malloc((grid->N+2)*NVARS*sizeof(Float));
+	sim->dudx = (Float**)malloc((grid->N+2)*sizeof(Float*));
+	sim->dudx[0] = (Float*)malloc((grid->N+2)*NVARS*sizeof(Float));
+	sim->res = (Float**)malloc((grid->N+2)*sizeof(Float*));
+	sim->res[0] = (Float*)malloc((grid->N+2)*NVARS*sizeof(Float));
 
-	sim->fluxes = (Float**)malloc((N+1)*sizeof(Float*));
-	sim->fluxes[0] = (Float*)malloc(NVARS*(N+1)*sizeof(Float));
-	sim->prleft = (Float**)malloc((N+1)*sizeof(Float*));
-	sim->prleft[0] = (Float*)malloc((N+1)*NVARS*sizeof(Float));
-	sim->prright = (Float**)malloc((N+1)*sizeof(Float*));
-	sim->prright[0] = (Float*)malloc((N+1)*NVARS*sizeof(Float));
+	sim->fluxes = (Float**)malloc((grid->N+1)*sizeof(Float*));
+	sim->fluxes[0] = (Float*)malloc(NVARS*(grid->N+1)*sizeof(Float));
+	sim->prleft = (Float**)malloc((grid->N+1)*sizeof(Float*));
+	sim->prleft[0] = (Float*)malloc((grid->N+1)*NVARS*sizeof(Float));
+	sim->prright = (Float**)malloc((grid->N+1)*sizeof(Float*));
+	sim->prright[0] = (Float*)malloc((grid->N+1)*NVARS*sizeof(Float));
 
 	sim->cfl = _cfl;
 	sim->domlen = domain_length;
@@ -44,18 +44,18 @@ void setup(Grid *const grid, Euler1d *const sim, const size_t num_cells, const i
 	/*for(int i = 0; i < ncell; i++)
 		u[i] = (Float*)malloc(NVARS*sizeof(Float));*/
 
-	for(int i = 1; i < N+2; i++)
+	for(int i = 1; i < grid->N+2; i++)
 	{
 		sim->u[i] = *sim->u + i*NVARS;
 		sim->prim[i] = *sim->prim + i*NVARS;
 		sim->dudx[i] = *sim->dudx + i*NVARS;
 		sim->res[i] = *sim->res + i*NVARS;
 	}
-	for(int i = 0; i < N+1; i++)
+	for(int i = 0; i < grid->N+1; i++)
 	{
-		fluxes[i] = *fluxes + i*NVARS;
-		prleft[i] = *prleft + i*NVARS;
-		prright[i] = *prright + i*NVARS;
+		sim->fluxes[i] = *(sim->fluxes) + i*NVARS;
+		sim->prleft[i] = *(sim->prleft) + i*NVARS;
+		sim->prright[i] = *(sim->prright) + i*NVARS;
 	}
 
 	sim->fluxstr = (char*)malloc(10*sizeof(char));
@@ -98,15 +98,15 @@ void generate_mesh(int type, const Float *const pointlist, Grid *const grid)
 	if(type == 0)
 	{
 		grid->nodes[0] = 0.0;
-		Float delx = domlen/grid->N;
+		Float delx = sim->domlen/grid->N;
 		grid->x[0] = -delx/2.0;
 		grid->dx[0] = delx;
 		for(int i = 1; i < grid->N+2; i++)
 		{
-			dx[i] = delx;
-			x[i] = i*delx - delx/2.0;
-			if(i < N+1)
-				nodes[i] = i*delx;
+			grid->dx[i] = delx;
+			grid->x[i] = i*delx - delx/2.0;
+			if(i < grid->N+1)
+				grid->nodes[i] = i*delx;
 		}
 	}
 	else
@@ -122,12 +122,12 @@ void generate_mesh(int type, const Float *const pointlist, Grid *const grid)
 		// ghost cells
 		grid->x[0] = -grid->x[1]; 
 		grid->dx[0] = grid->dx[1];
-		grid->x[N+1] = grid->nodes[grid->N] + grid->dx[grid->N]/2.0;
-		grid->dx[N+1] = grid->dx[N];
+		grid->x[grid->N+1] = grid->nodes[grid->N] + grid->dx[grid->N]/2.0;
+		grid->dx[grid->N+1] = grid->dx[grid->N];
 	}
 }
 
-void set_area(int type, const Float *const cellCenteredAreas, const Grid *const grid, Euler1d *const sim);
+void set_area(int type, const Float *const cellCenteredAreas, const Grid *const grid, Euler1d *const sim)
 {
 	if(type == 0)
 		for(int i = 0; i < grid->N+2; i++)
@@ -156,49 +156,51 @@ void set_area(int type, const Float *const cellCenteredAreas, const Grid *const 
 	}
 }
 
-void compute_inviscid_fluxes_vanleer(const Float *const *const prleft, const Float *const *const prright, const Float *const Af, Float *const *const flux, const Float g)
+void compute_inviscid_fluxes_vanleer(const Grid *const grid, Euler1d *const sim)
 {
-	#pragma acc kernels present( flux, prleft, prright, Af, res, g)
+	#pragma acc kernels present( grid, sim) 
+	// sim->fluxes, sim->prleft, sim->prright, sim->Af, sim->res, sim->g)
 	{
 		// iterate over interfaces
 		#pragma acc loop independent gang worker device_type(nvidia) vector(NVIDIA_VECTOR_LENGTH)
-		for(int i = 0; i < N+1; i++)
+		for(int i = 0; i < grid->N+1; i++)
 		{
-			compute_vanleerflux_prim(prleft[i], prright[i], flux[i], g);
+			compute_vanleerflux_prim(sim->prleft[i], sim->prright[i], sim->fluxes[i], sim->g);
 
 			// update residual
 			for(int j = 0; j < NVARS; j++)
-				flux[i][j] *= Af[i];
+				sim->fluxes[i][j] *= sim->Af[i];
 		}
 	}
 }
 
-void compute_inviscid_fluxes_llf(const Float *const *const prleft, const Float *const *const prright, const Float *const Af, Float *const *const flux, const Float g)
+void compute_inviscid_fluxes_llf(const Grid *const grid, Euler1d *const sim)
 {
-	#pragma acc kernels present( flux, prleft, prright, Af, res, g)
+	#pragma acc kernels present(grid, sim) 
+	//fluxes, prleft, prright, Af, res, g)
 	{
 		// iterate over interfaces
 		#pragma acc loop independent gang worker device_type(nvidia) vector(NVIDIA_VECTOR_LENGTH)
-		for(int i = 0; i < N+1; i++)
+		for(int i = 0; i < grid->N+1; i++)
 		{
-			compute_llfflux_prim(prleft[i], prright[i], flux[i], g);
+			compute_llfflux_prim(sim->prleft[i], sim->prright[i], sim->fluxes[i], sim->g);
 
 			// update residual
 			for(int j = 0; j < NVARS; j++)
-				flux[i][j] *= Af[i];
+				sim->fluxes[i][j] *= sim->Af[i];
 		}
 	}
 }
 
-void update_residual(const Float *const *const flux, Float *const *const res)
+void update_residual(const Grid *const grid, Euler1d *const sim)
 {
-#pragma acc kernels present(flux, res)
+#pragma acc kernels present(grid, sim)
 	{
 #pragma acc loop independent gang worker device_type(nvidia) vector(NVIDIA_VECTOR_LENGTH)
-		for(int i = 1; i < N+1; i++)
+		for(int i = 1; i < grid->N+1; i++)
 		{
 			for(int j = 0; j < NVARS; j++)
-				res[i][j] += flux[i-1][j] - flux[i][j];
+				sim->res[i][j] += sim->flux[i-1][j] - sim->flux[i][j];
 		}
 	}
 }
@@ -239,15 +241,15 @@ void update_residual(const Float *const *const flux, Float *const *const res)
 	free(fluxes);
 }*/
 
-void compute_source_term(const Float *const *const u, Float *const *const res, const Float *const Af, const Float g)
+void compute_source_term(const Grid *const grid, Euler1d *const sim)
 {
-	#pragma acc kernels present(u, Af, res, g)
+	#pragma acc kernels present(grid, sim)
 	{
 		#pragma acc loop independent gang worker device_type(nvidia) vector(NVIDIA_VECTOR_LENGTH)
-		for(int i = 1; i <= N; i++)
+		for(int i = 1; i <= grid->N; i++)
 		{
-			Float p = (g-1.0)*(u[i][2] - 0.5*u[i][1]*u[i][1]/u[i][0]);
-			res[i][1] += p*(Af[i] - Af[i-1]);
+			Float p = (sim->g-1.0)*(sim->u[i][2] - 0.5*sim->u[i][1]*sim->u[i][1]/sim->u[i][0]);
+			sim->res[i][1] += p*(sim->Af[i] - sim->Af[i-1]);
 		}
 	}
 }
@@ -260,7 +262,7 @@ void apply_boundary_conditions(Euler1d *const sim)
 	Float* bcvalR = sim->bcvalR;
 	int* bcL = &(sim->bcL);
 	int* bcR = &(sim->bcR);
-	#pragma acc parallel present(prim[:N+2][:NVARS], u[:N+2][:NVARS], bcvalL[:NVARS], bcvalR[:NVARS], bcL[:1], bcR[:1], sim->g, sim->cfl) num_gangs(1)
+	#pragma acc parallel present(sim, prim[:N+2][:NVARS], u[:N+2][:NVARS], bcvalL[:NVARS], bcvalR[:NVARS], bcL[:1], bcR[:1]) num_gangs(1)
 	{
 		if(*bcL == 0)
 		{
@@ -276,8 +278,8 @@ void apply_boundary_conditions(Euler1d *const sim)
 		{
 			Float M_in, c_in, v_in, p_in;
 			v_in = u[0][1]/u[0][0];
-			p_in = (g-1.0)*(u[0][2] - 0.5*u[0][0]*v_in*v_in);
-			c_in = sqrt(g*p_in/u[0][0]);
+			p_in = (sim->g-1.0)*(u[0][2] - 0.5*u[0][0]*v_in*v_in);
+			c_in = sqrt(sim->g*p_in/u[0][0]);
 			M_in = v_in/c_in;
 
 			if(M_in >= 1.0)
@@ -285,12 +287,12 @@ void apply_boundary_conditions(Euler1d *const sim)
 				// supersonic inflow
 				// get conserved variables from pt, Tt and M
 				//Float astar = 2*g*(g-1.0)/(g+1.0)*Cv*bcvalL[1];
-				Float T = bcvalL[1]/(1 + (g-1.0)/2.0*bcvalL[2]*bcvalL[2]);
+				Float T = bcvalL[1]/(1 + (sim->g-1.0)/2.0*bcvalL[2]*bcvalL[2]);
 				Float c = sqrt(g*R*T);
 				Float v = bcvalL[2]*c;
-				Float p = bcvalL[0]*pow( 1+(g-1.0)/2.0*bcvalL[2]*bcvalL[2], -g/(g-1.0) );
+				Float p = bcvalL[0]*pow( 1+(sim->g-1.0)/2.0*bcvalL[2]*bcvalL[2], -sim->g/(sim->g-1.0) );
 				Float rho = p/(R*T);
-				Float E = p/(g-1.0) + 0.5*rho*v*v;
+				Float E = p/(sim->g-1.0) + 0.5*rho*v*v;
 				/*u[0][0] = 2*rho - u[1][0];
 				u[0][1] = 2*rho*v - u[1][1];
 				u[0][2] = 2*E - u[1][2];*/
@@ -308,24 +310,24 @@ void apply_boundary_conditions(Euler1d *const sim)
 				Float vold, pold, cold, vold1, pold1, cold1, astar, dpdu, dt0, lambda, du, v, T, p;
 				Float* uold0 = u[0];
 				vold = uold0[1]/uold0[0];
-				pold = (g-1)*(uold0[2] - 0.5*uold0[1]*uold0[1]/uold0[0]);
-				cold = sqrt( g*pold/uold0[0] );
+				pold = (sim->g-1)*(uold0[2] - 0.5*uold0[1]*uold0[1]/uold0[0]);
+				cold = sqrt( sim->g*pold/uold0[0] );
 				vold1 = u[1][1]/u[1][0];
-				pold1 = (g-1)*(u[1][2] - 0.5*u[1][1]*u[1][1]/u[1][0]);
-				cold1 = sqrt( g*pold1/u[1][0] );
+				pold1 = (sim->g-1)*(u[1][2] - 0.5*u[1][1]*u[1][1]/u[1][0]);
+				cold1 = sqrt( sim->g*pold1/u[1][0] );
 
-				astar = 2*g*(g-1.0)/(g+1.0)*Cv*bcvalL[1];
-				dpdu = bcvalL[0]*g/(g-1.0)*pow(1.0-(g-1)/(g+1.0)*vold*vold/astar, 1.0/(g-1.0)) * (-2.0)*(g-1)/(g+1.0)*vold/astar;
+				astar = 2*sim->g*(sim->g-1.0)/(sim->g+1.0)*Cv*bcvalL[1];
+				dpdu = bcvalL[0]*sim->g/(sim->g-1.0)*pow(1.0-(sim->g-1)/(sim->g+1.0)*vold*vold/astar, 1.0/(sim->g-1.0)) * (-2.0)*(sim->g-1)/(sim->g+1.0)*vold/astar;
 				dt0 = sim->cfl*dx[0]/(fabs(vold)+cold);
 				lambda = (vold1+vold - cold1-cold)*0.5*dt0/dx[0];
 				du = -lambda * (pold1-pold-uold0[0]*cold*(vold1-vold)) / (dpdu-uold0[0]*cold);
 
 				v = vold + du;
-				T = bcvalL[1]*(1.0 - (g-1)/(g+1.0)*vold*vold/astar);
-				p = bcvalL[0]*pow(T/bcvalL[1], g/(g-1.0));
+				T = bcvalL[1]*(1.0 - (sim->g-1)/(sim->g+1.0)*vold*vold/astar);
+				p = bcvalL[0]*pow(T/bcvalL[1],sim-> g/(sim->g-1.0));
 				u[0][0] = p/(R*T);
 				u[0][1] = u[0][0]*v;
-				u[0][2] = p/(g-1.0) + 0.5*u[0][0]*v*v;
+				u[0][2] = p/(sim->g-1.0) + 0.5*u[0][0]*v*v;
 				prim[0][0] = u[0][0];
 				prim[0][1] = v;
 				prim[0][2] = p;
@@ -357,10 +359,10 @@ void apply_boundary_conditions(Euler1d *const sim)
 			Float* uold = u[N+1];
 			vold = uold[1]/uold[0];
 			pold = (g-1.0)*(uold[2]-0.5*uold[0]*vold*vold);
-			cold = sqrt(g*pold/uold[0]);
+			cold = sqrt(sim->g*pold/uold[0]);
 			vold1 = u[N][1]/u[N][0];
-			pold1 = (g-1.0)*(u[N][2]-0.5*u[N][0]*vold1*vold1);
-			cold1 = sqrt(g*pold1/u[N][0]);
+			pold1 = (sim->g-1.0)*(u[N][2]-0.5*u[N][0]*vold1*vold1);
+			cold1 = sqrt(sim->g*pold1/u[N][0]);
 
 			dt0 = sim->cfl*dx[N+1]/(fabs(vold)+cold);
 			l1 = (vold+vold1)*0.5*dt0/dx[N+1];
@@ -389,7 +391,7 @@ void apply_boundary_conditions(Euler1d *const sim)
 			else
 				p = bcvalR[0];
 
-			u[N+1][2] = p/(g-1.0) + 0.5*u[N+1][0]*(vold+dv)*(vold+dv);
+			u[N+1][2] = p/(sim->g-1.0) + 0.5*u[N+1][0]*(vold+dv)*(vold+dv);
 			prim[N+1][0] = u[N+1][0];
 			prim[N+1][1] = vold+dv;
 			prim[N+1][2] = p;

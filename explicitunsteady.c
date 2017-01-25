@@ -5,24 +5,24 @@ void set_data_unsteady(const size_t num_cells, const int bcleft, const int bcrig
 {
 	setup(grid, sim, num_cells, bcleft, bcright, bcvalleft, bcvalright, domain_length, _cfl, _flux);
 
-	RKCoeffs = (Float**)malloc(temporalOrder*sizeof(Float*));
-	RKCoeffs[0] = (Float*)malloc(temporalOrder*3*sizeof(Float));
-	for(int i = 0; i < temporalOrder; i++)
-		RKCoeffs[i] = *RKCoeffs + i*3;
+	tsim->RKCoeffs = (Float**)malloc(tsim->temporalOrder*sizeof(Float*));
+	tsim->RKCoeffs[0] = (Float*)malloc(tsim->temporalOrder*3*sizeof(Float));
+	for(int i = 0; i < tsim->temporalOrder; i++)
+		tsim->RKCoeffs[i] = *(tsim->RKCoeffs) + i*3;
 
 	FILE* rkfile = fopen(RKfile, "r");
-	for(int i = 0; i < temporalOrder; i++)
+	for(int i = 0; i < tsim->temporalOrder; i++)
 		for(int j = 0; j < 3; j++)
-			fscanf(rkfile, "%f", &RKCoeffs[i][j]);
+			fscanf(rkfile, "%f", &(tsim->RKCoeffs[i][j]));
 	fclose(rkfile);
 
-	printf("Euler1dExplicit: Using %d-stage TVD RK scheme; loaded coefficients.\n", temporalOrder);
+	printf("Euler1dExplicit: Using %d-stage TVD RK scheme; loaded coefficients.\n", tsim->temporalOrder);
 }
 
 void finalize_unsteady(Euler1dUnsteadyExplicit *const tsim)
 {
 	free(tsim->RKCoeffs[0]);
-	free(RKCoeffs);
+	free(tsim->RKCoeffs);
 }
 
 void run_unsteady(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExplicit *const tsim)
@@ -31,7 +31,7 @@ void run_unsteady(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExp
 	Float dt = 1.0, time = 0;
 
 	// IC for Sod shock tube
-	for(int i = 0; i < grid->grid->N+2; i++)
+	for(int i = 0; i < grid->N+2; i++)
 		if(grid->x[i] <= 0.5)
 		{
 			sim->u[i][0] = 1.0;
@@ -87,11 +87,15 @@ void run_unsteady(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExp
 	int N = grid->N;
 	Float g = sim->g;
 	Float cfl = sim->cfl;
+	Float* pcfl = &(sim->cfl);	// pointer to CFL
+	Float* pg = &(sim->g);		// pointer to g
 	//int* N = &(grid->N);
 	//Float* cfl = &(sim->cfl);
 	
-	#pragma acc enter data copyin(u[:N+2][:NVARS], prim[:N+2][:NVARS], x[:N+2], dx[:N+2], A[:N+2], vol[:N+2], Af[:N+1], nodes[:N+1], RKCoeffs[:temporalOrder][:3], bcvalL[:NVARS], bcvalR[:NVARS], bcL[:1], bcR[:1], g, cfl, dt)
-	#pragma acc enter data create(dudx[:N+2][:NVARS], res[:N+2][:NVARS], fluxes[:N+1][:NVARS], prleft[:N+1][:NVARS], prright[:N+1][:NVARS], istage, c[:N+2], uold[:N+2][:NVARS], ustage[:N+2][:NVARS])
+#pragma acc enter data copyin(grid[:1], sim[:1], tsim[:1])
+#pragma acc enter data copyin(u[:N+2][:NVARS], prim[:N+2][:NVARS], x[:N+2], dx[:N+2], A[:N+2], vol[:N+2], Af[:N+1], nodes[:N+1], RKCoeffs[:temporalOrder][:3])
+#pragma acc enter data copyin(bcvalL[:NVARS], bcvalR[:NVARS], bcL[:1], bcR[:1], g, pg[:1], cfl, pcfl[:1], dt)
+#pragma acc enter data create(dudx[:N+2][:NVARS], res[:N+2][:NVARS], fluxes[:N+1][:NVARS], prleft[:N+1][:NVARS], prright[:N+1][:NVARS], istage, c[:N+2], uold[:N+2][:NVARS], ustage[:N+2][:NVARS])
 
 	while(time < tsim->ftime)
 	{
@@ -123,14 +127,14 @@ void run_unsteady(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExp
 		//std::cout << "Euler1dExplicit: run(): Computed dt" << std::endl;
 
 		// NOTE: moved apply_boundary_conditions() to the top of the inner loop
-		for(istage = 0; istage < temporalOrder; istage++)
+		for(istage = 0; istage < tsim->temporalOrder; istage++)
 		{
 			// apply BCs
-			apply_boundary_conditions();
+			apply_boundary_conditions(sim);
 			
 			//std::cout << "Euler1dExplicit: run():  Applied BCs" << std::endl;
 
-			#pragma acc parallel loop present(u, ustage, res, this) gang worker vector device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH)
+			#pragma acc parallel loop present(u, ustage, res) gang worker vector device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH)
 			for(int i = 0; i < N+2; i++)
 			{
 				for(int j = 0; j < NVARS; j++)
@@ -153,11 +157,11 @@ void run_unsteady(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExp
 			
 			update_residual(fluxes, res);
 
-			compute_source_term(u,res,Af);
+			compute_source_term(u,res,Af,pg);
 			//std::cout << "Euler1dExplicit: run():  Computed source terms" << std::endl;
 
 			// RK stage
-			#pragma acc parallel loop present(prim, u, uold, ustage, res, vol, dt, RKCoeffs, g, this) gang worker vector device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH)
+			#pragma acc parallel loop present(prim, u, uold, ustage, res, vol, dt, RKCoeffs, g) gang worker vector device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH)
 			for(int i = 1; i < N+1; i++)
 			{
 				for(int j = 0; j < NVARS; j++)
@@ -171,7 +175,7 @@ void run_unsteady(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExp
 		}
 
 		if(step % 10 == 0)
-			printf("Euler1dExplicit: run(): Step %d - Time = %f\n" step, time);
+			printf("Euler1dExplicit: run(): Step %d - Time = %f\n", step, time);
 
 #pragma acc update self(dt)
 		time += dt;
@@ -180,8 +184,9 @@ void run_unsteady(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExp
 
 	#pragma update self(u[:N+2][:NVARS], prim[:N+2][:NVARS])
 	
-	#pragma acc exit data delete(u[:N+2][:NVARS], prim[:N+2][:NVARS], x[:N+2], dx[:N+2], A[:N+2], vol[:N+2], Af[:N+1], nodes[:N+1], RKCoeffs[:temporalOrder][:3], bcvalL[:NVARS], bcvalR[:NVARS], bcL, bcR, g, N, cfl, dudx[:N+2][:NVARS], res[:N+2][:NVARS], fluxes[:N+1][:NVARS], prleft[:N+1][:NVARS], prright[:N+1][:NVARS], dt, c[:N+2], uold[:N+2][:NVARS], ustage[:N+2][:NVARS])
-	#pragma acc exit data delete(this)
+#pragma acc exit data delete(u[:N+2][:NVARS], prim[:N+2][:NVARS], x[:N+2], dx[:N+2], A[:N+2], vol[:N+2], Af[:N+1], nodes[:N+1], RKCoeffs[:temporalOrder][:3], bcvalL[:NVARS], bcvalR[:NVARS], bcL, bcR)
+#pragma acc exit data delete(g, N, cfl, pcfl[:1], dudx[:N+2][:NVARS], res[:N+2][:NVARS], fluxes[:N+1][:NVARS], prleft[:N+1][:NVARS], prright[:N+1][:NVARS], dt, c[:N+2])
+#pragma acc exit data delete (uold[:N+2][:NVARS], ustage[:N+2][:NVARS])
 
 	free(c);
 	/*for(int i = 0; i < ncell; i++)
@@ -198,7 +203,7 @@ void postprocess_unsteady(const Grid *const grid, const Euler1d *const sim, cons
 {
 	FILE* ofile = fopen(outfilename, "w");
 	Float pressure, mach, c;
-	for(int i = 1; i < sim->N+1; i++)
+	for(int i = 1; i < grid->N+1; i++)
 	{
 		pressure = (sim->g-1)*(sim->u[i][2] - 0.5*sim->u[i][1]*sim->u[i][1]/sim->u[i][0]);
 		c = sqrt(sim->g*pressure/sim->u[i][0]);

@@ -74,30 +74,21 @@ void set_area(int type, const Float *const cellCenteredAreas, const Grid *const 
 
 //void compute_slopes();
 
-/// Computes Van Leer flux across all faces into a global flux array
-void compute_inviscid_fluxes_vanleer(const Float *const *const prleft, const Float *const *const prright, const Float *const Af, Float *const *const flux, const Float g);
+/// (Kernel function) Computes Van Leer flux across all faces into a global flux array
+void compute_inviscid_fluxes_vanleer(const Grid *const grid, Euler1d *const sim);
 
-/// Computes LLF fluxes across all faces into a global flux array
-void compute_inviscid_fluxes_llf(const Float *const *const prleft, const Float *const *const prright, const Float *const Af, Float *const *const flux, const Float g);
+/// (Kernel function) Computes LLF fluxes across all faces into a global flux array
+void compute_inviscid_fluxes_llf(const Grid *const grid, Euler1d *const sim);
 
 /// Updates cell residuals from computed fluxes
-void update_residual(const Float *const *const flux, Float *const *const res);
+void update_residual(const Grid *const grid, Euler1d *const sim);
 
 //void compute_inviscid_fluxes_cellwise(const Float *const *const prleft, const Float *const *const prright, Float *const *const res, const Float *const Af);
 
-void compute_source_term(const Float *const *const u, Float *const *const res, const Float *const Af, const Float g);
+/// (Kernel function) Adds contribution of source terms to the residual
+void compute_source_term(const Grid *const grid, Euler1d *const sim);
 
-/// Find new ghost cell values
+/// (Kernel function) Find new ghost cell values
 void apply_boundary_conditions(Euler1d *const sim);
-
-/// Find new values of left boundary face external state
-/** Note that interior states at boundary faces should already be computed.
- */
-void apply_boundary_conditions_at_left_boundary(Float *const ul, const Float *const ur);
-
-/// Find new values of right boundary face external state
-/** Note that interior states at boundary faces should already be computed.
- */
-void apply_boundary_conditions_at_right_boundary(const Float *const ul, Float *const ur);
 
 #endif

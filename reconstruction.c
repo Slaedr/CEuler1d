@@ -60,7 +60,7 @@ void compute_MUSCLReconstruction(const size_t N, Float const *const x, Float con
 			xm0 = x[0] - (x[1]-x[0]);
 			um0 = slope*xm0 + cc;
 
-			slope = (u[N+1][j] - u[*N][j])/(x[N+1]-x[(*N)]);
+			slope = (u[N+1][j] - u[N][j])/(x[N+1]-x[(N)]);
 			cc = u[N][j] - (u[N+1][j]-u[N][j])/(x[N+1]-x[N])*x[N];
 			xmN = x[N+1] + x[N]-x[N-1];
 			umN = slope*xmN + cc;

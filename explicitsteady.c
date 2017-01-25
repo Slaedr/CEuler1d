@@ -1,17 +1,11 @@
 #include "explicitsteady.h"
 
-Euler1dSteadyExplicit::Euler1dSteadyExplicit(int num_cells, Float length, int leftBCflag, int rightBCflag, std::vector<Float> leftBVs, std::vector<Float> rightBVs, 
-		Float CFL, std::string inviscidFlux, std::string slope_scheme, std::string face_extrap_scheme, std::string limiter, Float toler, int max_iter)
-	: Euler1d(num_cells,length,leftBCflag,rightBCflag,leftBVs,rightBVs, CFL, inviscidFlux, slope_scheme, face_extrap_scheme, limiter), tol(toler), maxiter(max_iter)
-{
-}
-
 void setup_data_steady(const size_t num_cells, const int bcleft, const int bcright, const Float bcvalleft[NVARS], const Float bcvalright[NVARS], const Float domain_length,	const char *const _flux, 
 		const Float _cfl, Float _tol, int max_iter, Grid *const grid, Euler1d *const sim, Euler1dSteadyExplicit *const tsim)
 {
 	tsim->tol = _tol;
 	tsim->maxiter = max_iter;
-	set_data(grid, sim, num_cells, bcleft, bcright, bcvalleft, bcvalright, domain_length, _cfl, _flux);
+	setup(grid, sim, num_cells, bcleft, bcright, bcvalleft, bcvalright, domain_length, _cfl, _flux);
 }
 
 void run_steady(const Grid *const grid, Euler1d *const sim, Euler1dSteadyExplicit *const tsim)
@@ -30,7 +24,7 @@ void run_steady(const Grid *const grid, Euler1d *const sim, Euler1dSteadyExplici
 	Float p_t = sim->bcvalL[0];
 	Float T_t = sim->bcvalL[1];
 	Float M = sim->bcvalL[2];
-	Float term = 1.0 + (g-1.0)*0.5*M*M;
+	Float term = 1.0 + (sim->g-1.0)*0.5*M*M;
 	Float Tin = T_t/term;
 	Float pin = p_t*pow(term, -sim->g/(sim->g-1.0));
 	Float cin;
@@ -42,7 +36,7 @@ void run_steady(const Grid *const grid, Euler1d *const sim, Euler1dSteadyExplici
 	for(int i = 0; i <= pn; i++)
 	{
 		sim->u[i][0] = pin/(R*Tin);
-		cin = sqrt(g*pin/sim->u[i][0]);
+		cin = sqrt(sim->g*pin/sim->u[i][0]);
 		sim->u[i][1] = sim->u[i][0]*M*cin;
 		sim->u[i][2] = pin/(sim->g-1.0)+0.5*sim->u[i][1]*M*cin;
 		sim->prim[i][0] = sim->u[i][0];
@@ -94,9 +88,11 @@ void run_steady(const Grid *const grid, Euler1d *const sim, Euler1dSteadyExplici
 	int N = grid->N;
 	Float g = sim->g;
 	Float cfl = sim->cfl;
+	Float* pcfl = &(sim->cfl);	// pointer to CFL
+	Float* pg = &(sim->g);		// pointer to g
 	
 	// Start time loop
-	while(resnorm/resnorm0 > tol && step < maxiter)
+	while(resnorm/resnorm0 > tsim->tol && step < tsim->maxiter)
 	{
 		int i,j;
 		for(i = 0; i < N+2; i++)
@@ -116,7 +112,7 @@ void run_steady(const Grid *const grid, Euler1d *const sim, Euler1dSteadyExplici
 		
 		update_residual(fluxes, res);
 
-		compute_source_term(u,res,Af);
+		compute_source_term(u,res,Af,pg);
 		//std::cout << "Euler1dExplicit: run():  Computed source terms" << std::endl;
 
 		// find time step as dt = CFL * min{ dx[i]/(|v[i]|+c[i]) }
@@ -146,7 +142,7 @@ void run_steady(const Grid *const grid, Euler1d *const sim, Euler1dSteadyExplici
 		}
 
 		// apply BCs
-		apply_boundary_conditions();
+		apply_boundary_conditions(sim);
 
 		if(step % 10 == 0)
 		{
@@ -158,7 +154,7 @@ void run_steady(const Grid *const grid, Euler1d *const sim, Euler1dSteadyExplici
 
 	printf("Euler1dExplicit: run(): Done. Number of time steps = %d\n", step);
 
-	if(step == maxiter)
+	if(step == tsim->maxiter)
 		printf("Euler1dExplicit: run(): Not converged!\n");
 
 	free(dt);
@@ -171,7 +167,7 @@ void postprocess_steady(const Grid *const grid, const Euler1d *const sim, const 
 	printf("postprocess_steady: Writing output to file.\n");
 	FILE* ofile = fopen(outfilename, "w");
 	Float pressure, mach, c;
-	for(int i = 1; i < sim->N+1; i++)
+	for(int i = 1; i < grid->N+1; i++)
 	{
 		pressure = (sim->g-1)*(sim->u[i][2] - 0.5*sim->u[i][1]*sim->u[i][1]/sim->u[i][0]);
 		c = sqrt(sim->g*pressure/sim->u[i][0]);
