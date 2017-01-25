@@ -1,6 +1,6 @@
 #include "inviscidflux.h"
 
-void compute_llfflux(Float const *const uleft, Float const *const uright, Float *const flux, const Float g)
+/*void compute_llfflux(Float const *const uleft, Float const *const uright, Float *const flux, const Float g)
 {
 	Float eps = 0.5;
 
@@ -18,7 +18,7 @@ void compute_llfflux(Float const *const uleft, Float const *const uright, Float 
 	flux[0] = 0.5*( uleft[1] + uright[1] - eps*emax*(uright[0]-uleft[0]) );
 	flux[1] = 0.5*( uleft[1]*uleft[1]/uleft[0] + pl + uright[1]*uright[1]/uright[0] + pr - eps*emax*(uright[1]-uleft[1]) );
 	flux[2] = 0.5*( uleft[1]/uleft[0]*(uleft[2]+pl) + uright[1]/uright[0]*(uright[2]+pr) - eps*emax*(uright[2]-uleft[2]) );
-}
+}*/
 
 void compute_llfflux_prim(Float const *const uleft, Float const *const uright, Float *const flux, const Float g)
 {
@@ -45,7 +45,7 @@ void compute_llfflux_prim(Float const *const uleft, Float const *const uright, F
 	flux[2] = 0.5*( uleft[1]*(El+uleft[2]) + uright[1]*(Er+uright[2]) - eps*emax*(Er-El) );
 }
 
-void compute_vanleerflux(Float const *const uleft, Float const *const uright, Float *const flux, const Float g)
+/*void compute_vanleerflux(Float const *const uleft, Float const *const uright, Float *const flux, const Float g)
 {
 	Float fluxL[NVARS];
 	Float fluxR[NVARS];
@@ -95,7 +95,7 @@ void compute_vanleerflux(Float const *const uleft, Float const *const uright, Fl
 
 	for(j = 0; j < NVARS; j++)
 		flux[j] = fluxL[j] + fluxR[j];
-}
+}*/
 
 void compute_vanleerflux_prim(Float const *const uleft, Float const *const uright, Float *const flux, const Float g)
 {

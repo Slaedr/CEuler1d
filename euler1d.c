@@ -10,14 +10,16 @@ int main(int argc, char* argv[])
 	}
 
 	char* confile = argv[1];
+	printf("%s\n", confile);
 	FILE* conf = fopen(confile, "r");
 
 	int leftbc, rightbc, temporal_order, N, areatype, maxiter;
 	Float leftbv[NVARS], rightbv[NVARS], *areas;
-	char *inv_flux, *areafile, *outputfile, *simtype, *slope_scheme, *rec_scheme, *limiter, *rkfile, *dum;
+	char inv_flux[20], areafile[50], outputfile[20], simtype[20], slope_scheme[20], rec_scheme[20], limiter[20], rkfile[20], dum[50];
 	Float cfl, f_time, L, tol;
 
-	fscanf(conf, "%s", dum); fscanf(conf, "%s",simtype);
+	fscanf(conf, "%s", dum);
+	fscanf(conf, "%s",simtype);
 	if(strcmp(simtype,"unsteady"))
 	{
 		fscanf(conf, "%s", dum); fscanf(conf, "%s",outputfile);

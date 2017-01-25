@@ -13,6 +13,8 @@ PROFILE= #-pg
 
 CFLAGS =
 
+CLIBS = -lm
+
 # if DEBUG is 1 or not defined, code is compiled in debug mode. Otherwise, optimizations are enabled
 ifndef DEBUG
 
@@ -61,10 +63,10 @@ clibobjst =$(clibsrcs:.c=.o)
 clibobjs = $(foreach obj,$(clibobjst),$(PREFIX)/$(obj))
 
 $(NAME): $(clibobjs)
-	$(CC) $(LFLAGS) -o $(PREFIX)/$(NAME) $(clibobjs) $(LIBS) $(PROFILE)
+	$(CC) $(LFLAGS) -o $(PREFIX)/$(NAME) $(clibobjs) $(CLIBS) $(PROFILE)
 
 $(PREFIX)/%.o: %.c
-	$(CC)  $(CFLAGS) -c -o $@ $<  $(INCLUDES) $(PROFILE)
+	$(CC)  $(CFLAGS) -c -o $@ $<  $(INCLUDES) $(CLIBS) $(PROFILE)
 
 .PHONY : clean
 clean:

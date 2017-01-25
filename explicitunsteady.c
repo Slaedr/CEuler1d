@@ -1,7 +1,7 @@
 #include "explicitunsteady.h"
 
-void set_data_unsteady(const size_t num_cells, const int bcleft, const int bcright, const Float bcvalleft[NVARS], const Float bcvalright[NVARS], const Float domain_length, const Float _cfl, 
-		const char *const _flux, Float f_time, int temporal_order, const char* RKfile, Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExplicit *const tsim)
+void setup_data_unsteady(const size_t num_cells, const int bcleft, const int bcright, const Float bcvalleft[NVARS], const Float bcvalright[NVARS], const Float domain_length,
+		const char *const _flux, const Float _cfl, Float f_time, int temporal_order, const char* RKfile, Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExplicit *const tsim)
 {
 	setup(grid, sim, num_cells, bcleft, bcright, bcvalleft, bcvalright, domain_length, _cfl, _flux);
 

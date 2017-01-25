@@ -5,6 +5,7 @@
  */
 
 #ifndef __RECONSTRUCTION_H
+#define __RECONSTRUCTION_H
 
 #ifndef __DEFINITIONS_H
 #include "definitions.h"

@@ -3,7 +3,7 @@ unsteady
 -output-file
 ../cases/sodst.dat
 -number-of-cells
-10000
+100
 -domain-length
 1.0
 -left-BC
