@@ -23,7 +23,13 @@
 //void compute_MUSCLReconstruction(const size_t N, Float const *const x, Float const *const *const u, Float * const * const uleft, 
 //		Float * const * const uright, const Float k);
 
+/// Piecewise constant "reconstruction"
+void compute_noReconstruction(const Grid* const grid, Euler1d *const sim);
+
 /// (Kernal function) Computes states at the faces
 void compute_MUSCLReconstruction(const Grid *const grid, Euler1d *const sim);
+
+/// Computes face states by MUSCL reconstruction without limiter
+void compute_MUSCLReconstruction_unlimited(const Grid *const grid, Euler1d *const sim);
 
 #endif

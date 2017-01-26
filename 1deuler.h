@@ -46,6 +46,7 @@ typedef struct
 	Float bcvalL[NVARS];			///< left boundary value
 	Float bcvalR[NVARS];			///< right boundary value
 	char* fluxstr;					///< Inviscid flux computation to be used
+	int fluxid;						///< Integer denoting which flux to use: 0 -> LLF, 1 -> Van Leer
 	char* cslopestr;				///< Slope reconstruction to be used (irrelevant)
 	char* recstr;					///< Method for computation of face values of flow variables from their cell-centred values (MUSCL is used always)
 	Float cfl;						///< CFL number

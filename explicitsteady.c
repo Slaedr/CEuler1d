@@ -8,6 +8,9 @@ void setup_data_steady(const size_t num_cells, const int bcleft, const int bcrig
 	setup(grid, sim, num_cells, bcleft, bcright, bcvalleft, bcvalright, domain_length, _cfl, _flux);
 }
 
+/** Does not converge when MUSCL is used with the Van Albada limiter, for some reason. Reaches a limit cycle too soon.
+ * When used without a limiter, MUSCL converges for smooth solutions when a continuous initial condition is used.
+ */
 void run_steady(const Grid *const grid, Euler1d *const sim, Euler1dSteadyExplicit *const tsim)
 {
 	int step = 0;
@@ -105,10 +108,16 @@ void run_steady(const Grid *const grid, Euler1d *const sim, Euler1dSteadyExplici
 			}
 		}
 			
-		compute_MUSCLReconstruction(grid, sim);
+		compute_MUSCLReconstruction_unlimited(grid, sim);
+		//compute_noReconstruction(grid, sim);
 		//printf("Euler1dExplicit: run():  Computed face values\n");
 
-		compute_inviscid_fluxes_vanleer(grid, sim);
+		if(sim->fluxid == 0)
+			compute_inviscid_fluxes_llf(grid, sim);
+		else if(sim->fluxid == 1)
+			compute_inviscid_fluxes_vanleer(grid, sim);
+		else
+			printf("! Euler1dExplicitSteady: Invalid flux scheme!\n");
 		//std::cout << "Euler1dExplicit: run():  Computed fluxes" << std::endl;
 		
 		update_residual(grid, sim);
@@ -116,7 +125,7 @@ void run_steady(const Grid *const grid, Euler1d *const sim, Euler1dSteadyExplici
 		compute_source_term(grid, sim);
 		//std::cout << "Euler1dExplicit: run():  Computed source terms" << std::endl;
 
-		// find time step as dt = CFL * min{ dx[i]/(|v[i]|+c[i]) }
+		// find time step as dt[i] = CFL * dx[i]/(|v[i]|+c[i])
 		
 		for(i = 1; i < grid->N+1; i++)
 		{

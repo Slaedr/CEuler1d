@@ -61,6 +61,17 @@ void setup(Grid *const grid, Euler1d *const sim, const size_t num_cells, const i
 	sim->fluxstr = (char*)malloc(10*sizeof(char));
 	strcpy(sim->fluxstr, _flux);
 
+	if(strcmp(_flux,"llf")==0)
+	{
+		sim->fluxid = 0;
+		printf("setup: Selected LLF flux\n");
+	}
+	else //if(strcmp(_flux, "vanleer")==0)
+	{
+		sim->fluxid = 1;
+		printf("setup: Selected Van Leer flux\n");
+	}
+
 	sim->g = 1.4;
 	sim->muscl_k = 1.0/3.0;
 	sim->Cv = GAS_CONSTANT/(sim->g-1.0);
@@ -139,7 +150,9 @@ void set_area(int type, const Float *const cellCenteredAreas, const Grid *const 
 	else
 	{
 		for(int i = 1; i < grid->N+1; i++)
+		{
 			sim->A[i] = cellCenteredAreas[i-1];
+		}
 		/*Float h = 0.15, t1 = 0.8, t2 = 3.0;
 		for(int i = 1; i < N+1; i++)
 			A[i] = 1.0 - h*pow(sin(PI*pow(x[i],t1)),t2);*/
@@ -162,7 +175,7 @@ void set_area(int type, const Float *const cellCenteredAreas, const Grid *const 
 
 void compute_inviscid_fluxes_vanleer(const Grid *const grid, Euler1d *const sim)
 {
-	#pragma acc kernels present( grid, sim) 
+#pragma acc kernels present( grid, sim) 
 	// sim->fluxes, sim->prleft, sim->prright, sim->Af, sim->res, sim->g)
 	{
 		// iterate over interfaces

@@ -4,7 +4,9 @@ void setup_data_unsteady(const size_t num_cells, const int bcleft, const int bcr
 		const char *const _flux, const Float _cfl, Float f_time, int temporal_order, const char* RKfile, Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExplicit *const tsim)
 {
 	setup(grid, sim, num_cells, bcleft, bcright, bcvalleft, bcvalright, domain_length, _cfl, _flux);
-
+	
+	tsim->temporalOrder = temporal_order;
+	tsim->ftime = f_time;
 	tsim->RKCoeffs = (Float**)malloc(tsim->temporalOrder*sizeof(Float*));
 	tsim->RKCoeffs[0] = (Float*)malloc(tsim->temporalOrder*3*sizeof(Float));
 	for(int i = 0; i < tsim->temporalOrder; i++)
@@ -13,7 +15,7 @@ void setup_data_unsteady(const size_t num_cells, const int bcleft, const int bcr
 	FILE* rkfile = fopen(RKfile, "r");
 	for(int i = 0; i < tsim->temporalOrder; i++)
 		for(int j = 0; j < 3; j++)
-			fscanf(rkfile, "%f", &(tsim->RKCoeffs[i][j]));
+			fscanf(rkfile, "%lf", &(tsim->RKCoeffs[i][j]));
 	fclose(rkfile);
 
 	printf("Euler1dExplicit: Using %d-stage TVD RK scheme; loaded coefficients.\n", tsim->temporalOrder);
@@ -93,6 +95,8 @@ void run_unsteady(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExp
 	//Float* cfl = &(sim->cfl);
 	*/
 	
+	//printf("Initial: %f, %f, %f\n", sim->u[1][0], sim->u[1][1], sim->u[1][2]);
+	
 #pragma acc enter data copyin(grid[:1], sim[:1], tsim[:1])
 #pragma acc enter data copyin(sim->u[:N+2][:NVARS], sim->prim[:N+2][:NVARS], grid->x[:N+2], grid->dx[:N+2], sim->A[:N+2], sim->vol[:N+2], sim->Af[:N+1], grid->nodes[:N+1])
 #pragma acc enter data copyin(sim->bcvalL[:NVARS], sim->bcvalR[:NVARS], sim->bcL, sim->bcR, sim->g, sim->cfl, dt, tsim->RKCoeffs[:temporalOrder][:3])
@@ -152,9 +156,15 @@ void run_unsteady(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExp
 			// compute face values of primitive variables
 			//compute_MUSCLReconstruction(N, x, u, prleft, prright, k);
 			compute_MUSCLReconstruction(grid, sim);
+			//compute_noReconstruction(grid, sim);
 			//printf("Euler1dExplicit: run():  Computed face values\n");
 
-			compute_inviscid_fluxes_vanleer(grid, sim);
+			if(sim->fluxid == 0)
+				compute_inviscid_fluxes_llf(grid, sim);
+			else if(sim->fluxid == 1)
+				compute_inviscid_fluxes_vanleer(grid, sim);
+			else
+				printf("! Euler1dExplicitUnsteady: Invalid flux scheme!\n");
 			//std::cout << "Euler1dExplicit: run():  Computed fluxes" << std::endl;
 			
 			update_residual(grid, sim);
