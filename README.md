@@ -1,7 +1,7 @@
 Quasi-1D Euler
 ==============
 
-Quasi 1D Euler solver for steady and unsteady problems using 2nd order MUSCL scheme with various limiters and two Riemann fluxes - local Lax-Freidrichs and Van Leer flux vector splitting. Explicit time stepping. Currently does not handle steady-state calculations with shocks.
+Quasi 1D Euler solver for steady and unsteady problems using 2nd order MUSCL scheme with various limiters and two Riemann fluxes - local Lax-Freidrichs (LLF) and Van Leer flux vector splitting. Explicit time stepping. Currently does not handle steady-state calculations with shocks.
 
 Accelerator-enabled
 -------------------
@@ -9,7 +9,9 @@ The code is being designed to take advantage of accelerator devices via OpenACC.
 
 Build scripts
 -------------
-The scripts "build_cpu.sh", "build_multicore.sh" and "build_gpu.sh" setup the comilation environment on the Guillimin cluster. Set the DEBUG variable to compile a debug version.
+The scripts "build_cpu.sh", "build_multicore.sh" and "build_gpu.sh" setup the compilation environment on the Guillimin cluster. 
+Set the DEBUG variable to compile a debug version. 
+A directory called "build" needs to be made before running make for the first time.
 
 Running
 -------
