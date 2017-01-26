@@ -1,12 +1,20 @@
 Quasi-1D Euler
 ==============
 
-Quasi 1D Euler solver for steady and unsteady problems using 2nd order MUSCL scheme with various limiters and two Riemann fluxes - local Lax-Freidrichs and Van Leer flux vector splitting. Explicit time stepping.
-
-Two variants of MUSCL have been implemented - MUSCLReconstructionG based on least-squares slopes, and MUSCLReconstruction based on Blazek's method. The latter works better at the moment. With the former, note that only Van Albada limiter works.
+Quasi 1D Euler solver for steady and unsteady problems using 2nd order MUSCL scheme with various limiters and two Riemann fluxes - local Lax-Freidrichs and Van Leer flux vector splitting. Explicit time stepping. Currently does not handle steady-state calculations with shocks.
 
 Accelerator-enabled
 -------------------
-The code is being designed to take advantage of accelerator devices via OpenACC. For this to work, array storage was converted from `std::vector` to C-style arrays using `malloc()` and `free()`.
-Notes:
-- Currently, C-style arrays are being used. Try the Array1d and Array2d classes which implement single-pointer flattened storage. `arr[i][j]` type access is enabled by operator overloading. This would ensure that arrays remain contiguous in GPU memory, which I think does not happen now. It would also use less storage.
+The code is being designed to take advantage of accelerator devices via OpenACC.
+
+Build scripts
+-------------
+The scripts "build_cpu.sh", "build_multicore.sh" and "build_gpu.sh" setup the comilation environment on the Guillimin cluster. Set the DEBUG variable to compile a debug version.
+
+Running
+-------
+Make sure to run the executable from within the runs/ directory, as the locations of the cross-sectional area file etc are specified relative to this.
+
+Visualization
+-------------
+Python, along with Numpy and Matplotlib, is required to run "plot.py" (for steady flow results) and "plot-unsteady.py" (for unsteady cases). These scripts require as arguments (1) the file containing data output by the code, and (2) a name for a title of the plot which is also used as the filename of the plot file that is automatically saved.

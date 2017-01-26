@@ -1,5 +1,6 @@
 /** \file explicitsteady.h
  * \brief Struct and functions for explicit steady-state solver.
+ * Currently only works for cases with smooth flow as no limiter is used.
  * \author Aditya Kashi
  * \date January 2017
  */

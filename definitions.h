@@ -18,11 +18,11 @@ typedef double Float;
 /// adiabatic index
 #define gamma 1.4
 
-/// MUSCL factor
+// MUSCL factor (not needed)
 //const Float k = 1.0/3.0;
 
 /// Specific gas constant of air
-//const Float R = 287.1;
+//const Float R = 287.1; // metric units
 #define GAS_CONSTANT 1716.0
 
 void matprint(Float const *const *const mat, size_t m, size_t n);

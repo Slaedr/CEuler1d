@@ -19,14 +19,14 @@
 #include "1deuler.h"
 #endif
 
-/// (Kernal function) Computes states at the faces
+// Computes states at the faces
 //void compute_MUSCLReconstruction(const size_t N, Float const *const x, Float const *const *const u, Float * const * const uleft, 
 //		Float * const * const uright, const Float k);
 
-/// Piecewise constant "reconstruction"
+/// Piecewise constant "reconstruction" to compute states at faces
 void compute_noReconstruction(const Grid* const grid, Euler1d *const sim);
 
-/// (Kernal function) Computes states at the faces
+/// Computes states at the faces by MUSCL reconstruction with Van Albada limiter
 void compute_MUSCLReconstruction(const Grid *const grid, Euler1d *const sim);
 
 /// Computes face states by MUSCL reconstruction without limiter

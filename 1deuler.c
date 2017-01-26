@@ -1,5 +1,10 @@
 #include "1deuler.h"
 
+/** Array allocation: For 2D arrays, a list of pointer variables is first allocated. Then, the actual m x n storage is allocated to the first pointer in the list.
+ * Finally, each pointer in the list is made to point to the beginning of the corresponding row in the actual storage.
+ * This means that the storage is necessarily contiguous, but the (i,j) entry can be accessed as myarray[i][j].
+ * However, I don't know if this could be a disadvantage in the OpenACC context.
+ */
 void setup(Grid *const grid, Euler1d *const sim, const size_t num_cells, const int bcleft, const int bcright, const Float leftBVs[NVARS], const Float rightBVs[NVARS], const Float domain_length, 
 		const Float _cfl, const char *const _flux)
 {

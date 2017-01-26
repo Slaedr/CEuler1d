@@ -18,8 +18,6 @@ void compute_noReconstruction(const Grid* const grid, Euler1d *const sim)
 	}
 }
 
-/* NOTE: Check this if code breaks!
- */
 void compute_MUSCLReconstruction(const Grid *const grid, Euler1d *const sim)
 {
 	// interior faces

@@ -1,5 +1,5 @@
 /** \file 1deuler.h
- * \brief Code to control the solution process for time-accurate 1D Euler equations.
+ * \brief Code to control the solution process for 1D Euler equations.
  * \author Aditya Kashi
  * \date Jan 2017
  */
@@ -77,10 +77,10 @@ void set_area(int type, const Float *const cellCenteredAreas, const Grid *const 
 
 //void compute_slopes();
 
-/// (Kernel function) Computes Van Leer flux across all faces into a global flux array
+/// Computes Van Leer flux across all faces into a global flux array
 void compute_inviscid_fluxes_vanleer(const Grid *const grid, Euler1d *const sim);
 
-/// (Kernel function) Computes LLF fluxes across all faces into a global flux array
+/// Computes LLF fluxes across all faces into a global flux array
 void compute_inviscid_fluxes_llf(const Grid *const grid, Euler1d *const sim);
 
 /// Updates cell residuals from computed fluxes
@@ -88,10 +88,10 @@ void update_residual(const Grid *const grid, Euler1d *const sim);
 
 //void compute_inviscid_fluxes_cellwise(const Float *const *const prleft, const Float *const *const prright, Float *const *const res, const Float *const Af);
 
-/// (Kernel function) Adds contribution of source terms to the residual
+/// Adds contribution of source terms to the residual
 void compute_source_term(const Grid *const grid, Euler1d *const sim);
 
-/// (Kernel function) Find new ghost cell values
+/// Find new ghost cell values
 void apply_boundary_conditions(const Grid *const grid, Euler1d *const sim);
 
 #endif

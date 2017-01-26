@@ -99,7 +99,7 @@ void run_unsteady(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExp
 	
 #pragma acc enter data copyin(grid[:1], sim[:1], tsim[:1])
 #pragma acc enter data copyin(sim->u[:N+2][:NVARS], sim->prim[:N+2][:NVARS], grid->x[:N+2], grid->dx[:N+2], sim->A[:N+2], sim->vol[:N+2], sim->Af[:N+1], grid->nodes[:N+1])
-#pragma acc enter data copyin(sim->bcvalL[:NVARS], sim->bcvalR[:NVARS], sim->bcL, sim->bcR, sim->g, sim->cfl, dt, tsim->RKCoeffs[:temporalOrder][:3])
+#pragma acc enter data copyin(sim->bcvalL[:NVARS], sim->bcvalR[:NVARS], dt, tsim->RKCoeffs[:temporalOrder][:3])
 #pragma acc enter data create(sim->dudx[:N+2][:NVARS], sim->res[:N+2][:NVARS], sim->fluxes[:N+1][:NVARS], sim->prleft[:N+1][:NVARS], sim->prright[:N+1][:NVARS], istage, c[:N+2], uold[:N+2][:NVARS], ustage[:N+2][:NVARS])
 
 	while(time < tsim->ftime)
@@ -197,9 +197,10 @@ void run_unsteady(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExp
 
 	#pragma update self(u[:N+2][:NVARS], prim[:N+2][:NVARS])
 	
-#pragma acc exit data delete(u[:N+2][:NVARS], prim[:N+2][:NVARS], x[:N+2], dx[:N+2], A[:N+2], vol[:N+2], Af[:N+1], nodes[:N+1], RKCoeffs[:temporalOrder][:3], bcvalL[:NVARS], bcvalR[:NVARS], bcL, bcR)
-#pragma acc exit data delete(g, N, cfl, pcfl[:1], dudx[:N+2][:NVARS], res[:N+2][:NVARS], fluxes[:N+1][:NVARS], prleft[:N+1][:NVARS], prright[:N+1][:NVARS], dt, c[:N+2])
+#pragma acc exit data delete(sim->u[:N+2][:NVARS], sim->prim[:N+2][:NVARS], grid->x[:N+2], grid->dx[:N+2], sim->A[:N+2], sim->vol[:N+2], sim->Af[:N+1], grid->nodes[:N+1], tsim->RKCoeffs[:temporalOrder][:3], sim->bcvalL[:NVARS], sim->bcvalR[:NVARS])
+#pragma acc exit data delete(sim->dudx[:N+2][:NVARS], sim->res[:N+2][:NVARS], sim->fluxes[:N+1][:NVARS], sim->prleft[:N+1][:NVARS], sim->prright[:N+1][:NVARS], dt, c[:N+2])
 #pragma acc exit data delete (uold[:N+2][:NVARS], ustage[:N+2][:NVARS])
+#pragma acc exit data delete (sim[:1], tsim[:1], grid[:1])
 
 	free(c);
 	/*for(int i = 0; i < ncell; i++)

@@ -107,6 +107,9 @@ void run_steady(const Grid *const grid, Euler1d *const sim, Euler1dSteadyExplici
 				sim->res[i][j] = 0;
 			}
 		}
+		
+		/** NOTE: for some reason, this only works with MUSCL reconstruction WITHOUT a limiter.
+		 */
 			
 		compute_MUSCLReconstruction_unlimited(grid, sim);
 		//compute_noReconstruction(grid, sim);
