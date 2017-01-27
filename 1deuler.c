@@ -286,7 +286,7 @@ void apply_boundary_conditions(const Grid *const grid, Euler1d *const sim)
 	int* bcL = &(sim->bcL);
 	int* bcR = &(sim->bcR);
 
-	#pragma acc parallel present(grid, sim, prim[:N+2][:NVARS], u[:N+2][:NVARS], bcvalL[:NVARS], bcvalR[:NVARS], bcL[:1], bcR[:1]) num_gangs(1)
+	#pragma acc parallel present(grid, sim, prim[:grid->N+2][:NVARS], u[:grid->N+2][:NVARS], bcvalL[:NVARS], bcvalR[:NVARS], bcL[:1], bcR[:1]) num_gangs(1)
 	{
 		if(*bcL == 0)
 		{

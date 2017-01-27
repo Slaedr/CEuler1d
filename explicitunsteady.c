@@ -98,9 +98,9 @@ void run_unsteady(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExp
 	//printf("Initial: %f, %f, %f\n", sim->u[1][0], sim->u[1][1], sim->u[1][2]);
 	
 #pragma acc enter data copyin(grid[:1], sim[:1], tsim[:1])
-#pragma acc enter data copyin(sim->u[:N+2][:NVARS], sim->prim[:N+2][:NVARS], grid->x[:N+2], grid->dx[:N+2], sim->A[:N+2], sim->vol[:N+2], sim->Af[:N+1], grid->nodes[:N+1])
-#pragma acc enter data copyin(sim->bcvalL[:NVARS], sim->bcvalR[:NVARS], dt, tsim->RKCoeffs[:temporalOrder][:3])
-#pragma acc enter data create(sim->dudx[:N+2][:NVARS], sim->res[:N+2][:NVARS], sim->fluxes[:N+1][:NVARS], sim->prleft[:N+1][:NVARS], sim->prright[:N+1][:NVARS], istage, c[:N+2], uold[:N+2][:NVARS], ustage[:N+2][:NVARS])
+#pragma acc enter data copyin(sim->u[:grid->N+2][:NVARS], sim->prim[:grid->N+2][:NVARS], grid->x[:grid->N+2], grid->dx[:grid->N+2], sim->A[:grid->N+2], sim->vol[:grid->N+2], sim->Af[:grid->N+1], grid->nodes[:grid->N+1])
+#pragma acc enter data copyin(sim->bcvalL[:NVARS], sim->bcvalR[:NVARS], dt, tsim->RKCoeffs[:tsim->temporalOrder][:3])
+#pragma acc enter data create(sim->dudx[:grid->N+2][:NVARS], sim->res[:grid->N+2][:NVARS], sim->fluxes[:grid->N+1][:NVARS], sim->prleft[:grid->N+1][:NVARS], sim->prright[:grid->N+1][:NVARS], istage, c[:grid->N+2], uold[:grid->N+2][:NVARS], ustage[:grid->N+2][:NVARS])
 
 	while(time < tsim->ftime)
 	{
@@ -110,7 +110,7 @@ void run_unsteady(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExp
 		
 		//std::cout << "Euler1dExplicit: run(): Updated self" << std::endl;
 
-		#pragma acc parallel loop present(u[:N+2][:NVARS], uold[:N+2][:NVARS]) gang worker vector device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH)
+		#pragma acc parallel loop present(sim, uold) gang worker vector device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH)
 		for(int i = 0; i < grid->N+2; i++)
 		{
 			for(int j = 0; j < NVARS; j++)
@@ -139,7 +139,7 @@ void run_unsteady(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExp
 			
 			//std::cout << "Euler1dExplicit: run():  Applied BCs" << std::endl;
 
-			#pragma acc parallel loop present(u, ustage, res) gang worker vector device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH)
+			#pragma acc parallel loop present(sim, ustage) gang worker vector device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH)
 			for(int i = 0; i < grid->N+2; i++)
 			{
 				for(int j = 0; j < NVARS; j++)
@@ -195,11 +195,11 @@ void run_unsteady(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExp
 		step++;
 	}
 
-	#pragma update self(u[:N+2][:NVARS], prim[:N+2][:NVARS])
+	#pragma update self(u[:grid->N+2][:NVARS], prim[:grid->N+2][:NVARS])
 	
-#pragma acc exit data delete(sim->u[:N+2][:NVARS], sim->prim[:N+2][:NVARS], grid->x[:N+2], grid->dx[:N+2], sim->A[:N+2], sim->vol[:N+2], sim->Af[:N+1], grid->nodes[:N+1], tsim->RKCoeffs[:temporalOrder][:3], sim->bcvalL[:NVARS], sim->bcvalR[:NVARS])
-#pragma acc exit data delete(sim->dudx[:N+2][:NVARS], sim->res[:N+2][:NVARS], sim->fluxes[:N+1][:NVARS], sim->prleft[:N+1][:NVARS], sim->prright[:N+1][:NVARS], dt, c[:N+2])
-#pragma acc exit data delete (uold[:N+2][:NVARS], ustage[:N+2][:NVARS])
+#pragma acc exit data delete(sim->u[:grid->N+2][:NVARS], sim->prim[:grid->N+2][:NVARS], grid->x[:grid->N+2], grid->dx[:grid->N+2], sim->A[:grid->N+2], sim->vol[:grid->N+2], sim->Af[:grid->N+1], grid->nodes[:grid->N+1], tsim->RKCoeffs[:tsim->temporalOrder][:3], sim->bcvalL[:NVARS], sim->bcvalR[:NVARS])
+#pragma acc exit data delete(sim->dudx[:grid->N+2][:NVARS], sim->res[:grid->N+2][:NVARS], sim->fluxes[:grid->N+1][:NVARS], sim->prleft[:grid->N+1][:NVARS], sim->prright[:grid->N+1][:NVARS],dt,c[:grid->N+2])
+#pragma acc exit data delete (uold[:grid->N+2][:NVARS], ustage[:grid->N+2][:NVARS])
 #pragma acc exit data delete (sim[:1], tsim[:1], grid[:1])
 
 	free(c);
