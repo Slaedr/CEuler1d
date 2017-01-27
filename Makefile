@@ -1,7 +1,8 @@
 # Makefile for Euler1d project
 # Aditya Kashi
 #
-# Make sure environment variable CC has been set with the compilers to use, or set them below.
+# NOTE: Make sure environment variable CC has been set with the compilers to use, or set them below.
+# NOTE: -Msafeptr=all means all pointers are assumed restriced.
 
 NAME = euler1d-acc
 PREFIX = build

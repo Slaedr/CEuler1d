@@ -15,7 +15,7 @@ A directory called "build" needs to be made before running make for the first ti
 
 Running
 -------
-Make sure to run the executable from within the runs/ directory, as the locations of the cross-sectional area file etc are specified relative to this.
+Make sure to run the executable from within the runs/ directory, as the locations of the cross-sectional area file etc are specified relative to this. A control file must be provided as an argument. Control files for the unsteady Sod shock tube case and the steady nozzle case are provided in the cases/ directory, having .control extension.
 
 Visualization
 -------------
