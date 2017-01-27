@@ -21,7 +21,7 @@ ifndef DEBUG
 
   $(info "Compiling with optimizations, without debug data")
   ifeq ($(CC),pgcc)
-    $(info "Setting flags for pgc++")
+    $(info "Setting flags for pgcc")
     CFLAGS = -O3 -Msafeptr=all -fast #-Minfo=vect -Minfo=inline
     LFLAGS = -O3
   else
@@ -45,7 +45,7 @@ endif
 
 ifdef BUILD_WITH_ACC
   $(info 'Compiling with OpenACC')
-  ifeq ($(CXX),pgcc)
+  ifeq ($(CC),pgcc)
     ifdef BUILD_FOR_MULTICORE
       $(info 'Compiling for multicore CPU')
       CFLAGS := $(CFLAGS) -ta=multicore -Minfo=accel
