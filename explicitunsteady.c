@@ -110,7 +110,7 @@ void run_unsteady(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExp
 		
 		//std::cout << "Euler1dExplicit: run(): Updated self" << std::endl;
 
-		#pragma acc parallel loop present(sim, uold) gang worker vector device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH)
+		#pragma acc parallel loop present(sim, uold) gang worker vector device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH) //num_workers(NVIDIA_WORKERS_PER_GANG)
 		for(int i = 0; i < grid->N+2; i++)
 		{
 			for(int j = 0; j < NVARS; j++)
@@ -122,7 +122,7 @@ void run_unsteady(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExp
 		
 		// find time step as dt = CFL * min{ dx[i]/(|v[i]|+c[i]) }
 		
-		#pragma acc parallel loop present(sim, grid, c, dt) reduction(min:dt) gang worker vector device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH)
+		#pragma acc parallel loop present(sim, grid, c, dt) reduction(min:dt) gang worker vector device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH) //num_workers(NVIDIA_WORKERS_PER_GANG)
 		for(int i = 1; i < grid->N+1; i++)
 		{
 			c[i] = sim->cfl*grid->dx[i]/(fabs(sim->u[i][1]) + sqrt(sim->g*(sim->g-1.0) * (sim->u[i][2] - 0.5*sim->u[i][1]*sim->u[i][1]/sim->u[i][0]) / sim->u[i][0]));
@@ -139,7 +139,7 @@ void run_unsteady(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExp
 			
 			//std::cout << "Euler1dExplicit: run():  Applied BCs" << std::endl;
 
-			#pragma acc parallel loop present(sim, ustage) gang worker vector device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH)
+			#pragma acc parallel loop present(sim, ustage) gang worker vector device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH) //num_workers(NVIDIA_WORKERS_PER_GANG)
 			for(int i = 0; i < grid->N+2; i++)
 			{
 				for(int j = 0; j < NVARS; j++)
@@ -174,7 +174,7 @@ void run_unsteady(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExp
 
 			// RK stage
 			//#pragma acc parallel loop present(prim, u, uold, ustage, res, vol, dt, RKCoeffs, g) gang worker vector device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH)
-			#pragma acc parallel loop present(sim, tsim) gang worker vector device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH)
+			#pragma acc parallel loop present(sim, tsim, dt, ustage, uold) gang worker vector device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH) //num_workers(NVIDIA_WORKERS_PER_GANG)
 			for(int i = 1; i < grid->N+1; i++)
 			{
 				for(int j = 0; j < NVARS; j++)

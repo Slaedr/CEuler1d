@@ -184,7 +184,7 @@ void compute_inviscid_fluxes_vanleer(const Grid *const grid, Euler1d *const sim)
 	// sim->fluxes, sim->prleft, sim->prright, sim->Af, sim->res, sim->g)
 	{
 		// iterate over interfaces
-		#pragma acc loop independent gang worker device_type(nvidia) vector(NVIDIA_VECTOR_LENGTH)
+		#pragma acc loop independent device_type(nvidia) gang vector(NVIDIA_VECTOR_LENGTH) //worker(NVIDIA_WORKERS_PER_GANG)
 		for(int i = 0; i < grid->N+1; i++)
 		{
 			compute_vanleerflux_prim(sim->prleft[i], sim->prright[i], sim->fluxes[i], sim->g);
@@ -198,16 +198,15 @@ void compute_inviscid_fluxes_vanleer(const Grid *const grid, Euler1d *const sim)
 
 void compute_inviscid_fluxes_llf(const Grid *const grid, Euler1d *const sim)
 {
-	#pragma acc kernels present(grid, sim) 
-	//fluxes, prleft, prright, Af, res, g)
+	//#pragma acc kernels present(grid, sim) 
 	{
 		// iterate over interfaces
-		#pragma acc loop independent gang worker device_type(nvidia) vector(NVIDIA_VECTOR_LENGTH)
+		//#pragma acc loop independent device_type(nvidia) gang vector(NVIDIA_VECTOR_LENGTH) worker(NVIDIA_WORKERS_PER_GANG)
+		#pragma acc parallel loop present(grid, sim) gang worker vector device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH) //num_workers(NVIDIA_WORKERS_PER_GANG)
 		for(int i = 0; i < grid->N+1; i++)
 		{
 			compute_llfflux_prim(sim->prleft[i], sim->prright[i], sim->fluxes[i], sim->g);
 
-			// update residual
 			for(int j = 0; j < NVARS; j++)
 				sim->fluxes[i][j] *= sim->Af[i];
 		}
@@ -218,9 +217,10 @@ void update_residual(const Grid *const grid, Euler1d *const sim)
 {
 #pragma acc kernels present(grid, sim)
 	{
-#pragma acc loop independent gang worker device_type(nvidia) vector(NVIDIA_VECTOR_LENGTH)
+#pragma acc loop independent device_type(nvidia) gang vector(NVIDIA_VECTOR_LENGTH) //worker(NVIDIA_WORKERS_PER_GANG)
 		for(int i = 1; i < grid->N+1; i++)
 		{
+#pragma acc loop seq
 			for(int j = 0; j < NVARS; j++)
 				sim->res[i][j] += sim->fluxes[i-1][j] - sim->fluxes[i][j];
 		}
@@ -267,7 +267,7 @@ void compute_source_term(const Grid *const grid, Euler1d *const sim)
 {
 	#pragma acc kernels present(grid, sim)
 	{
-		#pragma acc loop independent gang worker device_type(nvidia) vector(NVIDIA_VECTOR_LENGTH)
+		#pragma acc loop independent device_type(nvidia) gang vector(NVIDIA_VECTOR_LENGTH) //worker(NVIDIA_WORKERS_PER_GANG)
 		for(int i = 1; i <= grid->N; i++)
 		{
 			Float p = (sim->g-1.0)*(sim->u[i][2] - 0.5*sim->u[i][1]*sim->u[i][1]/sim->u[i][0]);

@@ -29,5 +29,6 @@ void matprint(Float const *const *const mat, size_t m, size_t n);
 
 // OpenACC constants
 #define NVIDIA_VECTOR_LENGTH 32
+#define NVIDIA_WORKERS_PER_GANG 8
 
 #endif

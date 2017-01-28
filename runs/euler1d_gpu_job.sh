@@ -1,8 +1,8 @@
 #! /bin/bash
 #PBS -l nodes=1:ppn=16:gpus=1:sandybridge
-#PBS -l walltime=00:25:00
+#PBS -l walltime=00:45:00
 #PBS -A rck-371-aa
-#PBS -o sodst_acc_gpu-prof.log
+#PBS -o sodst-10k_acc_gpu-auto.log
 #PBS -e sodst_acc_gpu.err
 #PBS -N sodst_acc_gpu
 
@@ -13,4 +13,4 @@ module load PGI/16.3-GCC-4.9.3-2.25
 #export PGI_ACC_TIME=1
 
 cd $PBS_O_WORKDIR
-pgprof ../build/euler1d-acc ../cases/sodst.control
+../build/euler1d-acc ../cases/unsteady.control

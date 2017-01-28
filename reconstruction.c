@@ -21,7 +21,7 @@ void compute_noReconstruction(const Grid* const grid, Euler1d *const sim)
 void compute_MUSCLReconstruction(const Grid *const grid, Euler1d *const sim)
 {
 	// interior faces
-	#pragma acc parallel present(grid, sim) device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH)
+	#pragma acc parallel present(grid, sim) device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH) //num_workers(NVIDIA_WORKERS_PER_GANG)
 	{
 		#pragma acc loop gang worker vector 
 		for(size_t i = 1; i <= grid->N-1; i++)
@@ -129,7 +129,7 @@ void compute_MUSCLReconstruction(const Grid *const grid, Euler1d *const sim)
 void compute_MUSCLReconstruction_unlimited(const Grid *const grid, Euler1d *const sim)
 {
 	// interior faces
-	#pragma acc parallel present(grid, sim) device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH)
+	#pragma acc parallel present(grid, sim) device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH) //num_workers(NVIDIA_WORKERS_PER_GANG)
 	{
 		#pragma acc loop gang worker vector 
 		for(size_t i = 1; i <= grid->N-1; i++)
