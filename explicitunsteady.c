@@ -173,7 +173,6 @@ void run_unsteady(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExp
 			//std::cout << "Euler1dExplicit: run():  Computed source terms" << std::endl;
 
 			// RK stage
-			//#pragma acc parallel loop present(prim, u, uold, ustage, res, vol, dt, RKCoeffs, g) gang worker vector device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH)
 			#pragma acc parallel loop present(sim, tsim, dt, ustage, uold) gang worker vector device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH) //num_workers(NVIDIA_WORKERS_PER_GANG)
 			for(int i = 1; i < grid->N+1; i++)
 			{
@@ -190,12 +189,14 @@ void run_unsteady(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExp
 		if(step % 10 == 0)
 			printf("Euler1dExplicit: run(): Step %d - Time = %f\n", step, time);
 
-#pragma acc update self(dt)
+#pragma acc update self(dt) async
 		time += dt;
 		step++;
 	}
 
-	#pragma update self(u[:grid->N+2][:NVARS], prim[:grid->N+2][:NVARS])
+#pragma acc wait
+
+#pragma update self(u[:grid->N+2][:NVARS], prim[:grid->N+2][:NVARS])
 	
 #pragma acc exit data delete(sim->u[:grid->N+2][:NVARS], sim->prim[:grid->N+2][:NVARS], grid->x[:grid->N+2], grid->dx[:grid->N+2], sim->A[:grid->N+2], sim->vol[:grid->N+2], sim->Af[:grid->N+1], grid->nodes[:grid->N+1], tsim->RKCoeffs[:tsim->temporalOrder][:3], sim->bcvalL[:NVARS], sim->bcvalR[:NVARS])
 #pragma acc exit data delete(sim->dudx[:grid->N+2][:NVARS], sim->res[:grid->N+2][:NVARS], sim->fluxes[:grid->N+1][:NVARS], sim->prleft[:grid->N+1][:NVARS], sim->prright[:grid->N+1][:NVARS],dt,c[:grid->N+2])
