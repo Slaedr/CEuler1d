@@ -8,8 +8,10 @@
 
 void compute_noReconstruction(const Grid* const grid, Euler1d *const sim)
 {
+#pragma acc parallel loop gang worker vector present(grid, sim) device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH)
 	for(size_t i = 0; i <= grid->N; i++)
 	{
+#pragma acc loop seq
 		for(size_t j = 0; j < NVARS; j++)
 		{
 			sim->prleft[i][j] = sim->prim[i][j];

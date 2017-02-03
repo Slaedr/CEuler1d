@@ -95,10 +95,30 @@ void run_steady(const Grid *const grid, Euler1d *const sim, Euler1dSteadyExplici
 	Float* pg = &(sim->g);		// pointer to g
 	*/
 
+#pragma acc enter data copyin(grid[:1], sim[:1])
+#pragma acc enter data copyin(sim->u[:grid->N+2][:NVARS], sim->prim[:grid->N+2][:NVARS], grid->x[:grid->N+2], grid->dx[:grid->N+2], grid->nodes[:grid->N+1])
+#pragma acc enter data copyin(sim->A[:grid->N+2], sim->vol[:grid->N+2], sim->Af[:grid->N+1])
+#pragma acc enter data copyin(sim->bcvalL[:NVARS], sim->bcvalR[:NVARS], resnorm)
+#pragma acc enter data create(sim->dudx[:grid->N+2][:NVARS], sim->res[:grid->N+2][:NVARS], sim->fluxes[:grid->N+1][:NVARS], sim->prleft[:grid->N+1][:NVARS], sim->prright[:grid->N+1][:NVARS])
+#pragma acc enter data create(c[:grid->N+2], uold[:grid->N+2][:NVARS], dt[:grid->N+2])
+
+	compute_noReconstruction(grid, sim);
+	compute_inviscid_fluxes_llf(grid, sim);
+	update_residual(grid, sim);
+
+#pragma acc update self(sim->res[:grid->N+2][:NVARS])
+	
+	resnorm0 = 0.0;
+	for(int i = 1; i <= grid->N; i++)
+		resnorm0 += sim->res[i][0]*sim->res[i][0]*grid->dx[i];
+	resnorm0 = sqrt(resnorm0);
+	printf("Euler1d steady explicit: Initial residual = %f\n", resnorm0);
+
 	// Start time loop
 	while(resnorm/resnorm0 > tsim->tol && step < tsim->maxiter)
 	{
 		int i,j;
+#pragma acc parallel loop present(sim, uold, res) gang worker vector device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH) //num_workers(NVIDIA_WORKERS_PER_GANG)
 		for(i = 0; i < grid->N+2; i++)
 		{
 			for(j = 0; j < NVARS; j++)
@@ -130,20 +150,31 @@ void run_steady(const Grid *const grid, Euler1d *const sim, Euler1dSteadyExplici
 
 		// find time step as dt[i] = CFL * dx[i]/(|v[i]|+c[i])
 		
+#pragma acc parallel loop present(sim, grid, c, dt) gang worker vector device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH) //num_workers(NVIDIA_WORKERS_PER_GANG)
 		for(i = 1; i < grid->N+1; i++)
 		{
 			Float c = sqrt( sim->g*(sim->g-1.0) * (sim->u[i][2] - 0.5*sim->u[i][1]*sim->u[i][1]/sim->u[i][0]) / sim->u[i][0] );
 			dt[i] = sim->cfl * grid->dx[i]/(fabs(sim->u[i][1]) + c);
 		}
 
-		resnorm = 0;
+#pragma acc parallel present(resnorm) num_gangs(1) num_workers(1)
+		{
+			resnorm = 0;
+		}
+
+#pragma acc parallel loop present(sim, grid, resnorm) reduction(+:resnorm)
 		for(i = 1; i <= grid->N; i++)
 			resnorm += sim->res[i][0]*sim->res[i][0]*grid->dx[i];
+
+#pragma acc parallel present(resnorm) num_gangs(1) num_workers(1)
 		resnorm = sqrt(resnorm);
-		if(step==0)
-			resnorm0 = resnorm;
+		//if(step==0)
+		//	resnorm0 = resnorm;
+
+#pragma acc update self(resnorm) async
 
 		// RK step
+#pragma acc parallel loop present(sim, dt, uold) gang worker vector device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH) //num_workers(NVIDIA_WORKERS_PER_GANG)
 		for(i = 1; i < grid->N+1; i++)
 		{
 			for(j = 0; j < NVARS; j++)
@@ -157,7 +188,7 @@ void run_steady(const Grid *const grid, Euler1d *const sim, Euler1dSteadyExplici
 		// apply BCs
 		apply_boundary_conditions(grid,sim);
 
-		if(step % 10 == 0)
+		if(step % 20 == 0)
 		{
 			printf("Euler1dSteadyExplicit: run(): Step %d, relative mass flux norm = %f\n", step, resnorm/resnorm0);
 		}
@@ -165,10 +196,19 @@ void run_steady(const Grid *const grid, Euler1d *const sim, Euler1dSteadyExplici
 		step++;
 	}
 
-	printf("Euler1dExplicit: run(): Done. Number of time steps = %d\n", step);
+#pragma update self(u[:grid->N+2][:NVARS], prim[:grid->N+2][:NVARS])
+#pragma acc wait
+
+	printf("Euler1d Steady Explicit: run(): Done. Number of time steps = %d, Final relative residual = %f\n", step, resnorm/resnorm0);
 
 	if(step == tsim->maxiter)
 		printf("Euler1dExplicit: run(): Not converged!\n");
+
+#pragma acc exit data delete(sim->u[:grid->N+2][:NVARS], sim->prim[:grid->N+2][:NVARS], grid->x[:grid->N+2], grid->dx[:grid->N+2], grid->nodes[:grid->N+1], 
+#pragma acc exit data delete(sim->A[:grid->N+2], sim->vol[:grid->N+2], sim->Af[:grid->N+1], sim->bcvalL[:NVARS], sim->bcvalR[:NVARS])
+#pragma acc exit data delete(sim->dudx[:grid->N+2][:NVARS], sim->res[:grid->N+2][:NVARS], sim->fluxes[:grid->N+1][:NVARS], sim->prleft[:grid->N+1][:NVARS], sim->prright[:grid->N+1][:NVARS])
+#pragma acc exit data delete (uold[:grid->N+2][:NVARS] ,c[:grid->N+2], dt[:grid->N+2], resnorm)
+#pragma acc exit data delete (sim[:1], grid[:1])
 
 	free(dt);
 	free(uold[0]);

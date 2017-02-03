@@ -1,7 +1,7 @@
 -simulation-type
 unsteady
 -output-file
-../cases/sodst.dat
+../cases/sodst-0.15.dat
 -number-of-cells
 10000
 -domain-length
@@ -25,7 +25,7 @@ MUSCL
 -limiter
 vanalbada
 -Final-physical-time
-0.2
+0.15
 -temporal-order-of-accuracy
 1
 -file-containing-TVDRK-coefficients

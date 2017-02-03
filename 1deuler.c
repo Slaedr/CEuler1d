@@ -181,10 +181,9 @@ void set_area(int type, const Float *const cellCenteredAreas, const Grid *const 
 void compute_inviscid_fluxes_vanleer(const Grid *const grid, Euler1d *const sim)
 {
 #pragma acc kernels present( grid, sim) 
-	// sim->fluxes, sim->prleft, sim->prright, sim->Af, sim->res, sim->g)
 	{
 		// iterate over interfaces
-		#pragma acc loop independent device_type(nvidia) gang vector(NVIDIA_VECTOR_LENGTH) //worker(NVIDIA_WORKERS_PER_GANG)
+#pragma acc loop independent device_type(nvidia) gang vector(NVIDIA_VECTOR_LENGTH) //worker(NVIDIA_WORKERS_PER_GANG)
 		for(int i = 0; i < grid->N+1; i++)
 		{
 			compute_vanleerflux_prim(sim->prleft[i], sim->prright[i], sim->fluxes[i], sim->g);
@@ -201,8 +200,7 @@ void compute_inviscid_fluxes_llf(const Grid *const grid, Euler1d *const sim)
 	//#pragma acc kernels present(grid, sim) 
 	{
 		// iterate over interfaces
-		//#pragma acc loop independent device_type(nvidia) gang vector(NVIDIA_VECTOR_LENGTH) worker(NVIDIA_WORKERS_PER_GANG)
-		#pragma acc parallel loop present(grid, sim) gang worker vector device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH) //num_workers(NVIDIA_WORKERS_PER_GANG)
+#pragma acc parallel loop present(grid, sim) gang worker vector device_type(nvidia) vector_length(NVIDIA_VECTOR_LENGTH) //num_workers(NVIDIA_WORKERS_PER_GANG)
 		for(int i = 0; i < grid->N+1; i++)
 		{
 			compute_llfflux_prim(sim->prleft[i], sim->prright[i], sim->fluxes[i], sim->g);
@@ -265,9 +263,9 @@ void update_residual(const Grid *const grid, Euler1d *const sim)
 
 void compute_source_term(const Grid *const grid, Euler1d *const sim)
 {
-	#pragma acc kernels present(grid, sim)
+#pragma acc kernels present(grid, sim)
 	{
-		#pragma acc loop independent device_type(nvidia) gang vector(NVIDIA_VECTOR_LENGTH) //worker(NVIDIA_WORKERS_PER_GANG)
+#pragma acc loop independent device_type(nvidia) gang vector(NVIDIA_VECTOR_LENGTH) //worker(NVIDIA_WORKERS_PER_GANG)
 		for(int i = 1; i <= grid->N; i++)
 		{
 			Float p = (sim->g-1.0)*(sim->u[i][2] - 0.5*sim->u[i][1]*sim->u[i][1]/sim->u[i][0]);
@@ -286,7 +284,7 @@ void apply_boundary_conditions(const Grid *const grid, Euler1d *const sim)
 	int* bcL = &(sim->bcL);
 	int* bcR = &(sim->bcR);
 
-	#pragma acc parallel present(grid, sim, prim[:grid->N+2][:NVARS], u[:grid->N+2][:NVARS], bcvalL[:NVARS], bcvalR[:NVARS], bcL[:1], bcR[:1]) num_gangs(1)
+#pragma acc parallel present(grid, sim, prim[:grid->N+2][:NVARS], u[:grid->N+2][:NVARS], bcvalL[:NVARS], bcvalR[:NVARS], bcL[:1], bcR[:1]) num_gangs(1)
 	{
 		if(*bcL == 0)
 		{

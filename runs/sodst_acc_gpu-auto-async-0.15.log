@@ -1,0 +1,30 @@
+----------------------------------------
+Begin PBS Prologue Thu Feb  2 06:12:47 EST 2017 1486033967
+Job ID:		77401047.gm-1r16-n04.guillimin.clumeq.ca
+Username:	akashi
+Group:		rck-371-01
+Nodes:		aw-4r14-n29
+End PBS Prologue Thu Feb  2 06:12:47 EST 2017 1486033967
+----------------------------------------
+Unsteady: 10000, 1.000000, 0, 0, vanleer, 0.200000, 0.150000, 1
+setup: Selected Van Leer flux
+Euler1dExplicit: Using 1-stage TVD RK scheme; loaded coefficients.
+Euler1dExplicit: run(): Step 0 - Time = 0.000000
+Euler1dExplicit: run(): Done. Number of time steps = 1, final time = 1.000000
+----------------------------------------
+Begin PBS Epilogue Thu Feb  2 06:12:50 EST 2017 1486033970
+Job ID:		77401047.gm-1r16-n04.guillimin.clumeq.ca
+Username:	akashi
+Group:		rck-371-01
+Job Name:	sodst_acc_gpu
+Session:	29348
+Limits:		neednodes=1:ppn=16:gpus=1,nodes=1:ppn=16:gpus=1,walltime=00:05:00
+Resources:	cput=00:00:00,energy_used=0,mem=2008kb,vmem=19240kb,walltime=00:00:04
+Queue:		k20
+Account:	rck-371-aa
+Exit code:	0
+Nodes:	aw-4r14-n29
+Killing leftovers...
+
+End PBS Epilogue Thu Feb  2 06:12:50 EST 2017 1486033970
+----------------------------------------

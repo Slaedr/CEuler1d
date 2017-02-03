@@ -30,7 +30,7 @@ void finalize_unsteady(Euler1dUnsteadyExplicit *const tsim)
 void run_unsteady(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExplicit *const tsim)
 {
 	int step = 0, istage;
-	Float dt = 1.0, time = 0;
+	Float dt = 0.05, time = 0;
 
 	// IC for Sod shock tube
 	for(int i = 0; i < grid->N+2; i++)
@@ -203,6 +203,8 @@ void run_unsteady(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExp
 #pragma acc exit data delete (uold[:grid->N+2][:NVARS], ustage[:grid->N+2][:NVARS])
 #pragma acc exit data delete (sim[:1], tsim[:1], grid[:1])
 
+	printf("Euler1dExplicitUnsteady: Final time = %f\n", time);
+	
 	free(c);
 	/*for(int i = 0; i < ncell; i++)
 		free(uold[i]);*/

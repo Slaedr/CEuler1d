@@ -2,11 +2,11 @@
 import sys
 import numpy as np
 
-fname = "cross-section-profile-49.dat"
+fname = "cross-section-profile-10k.dat"
 h = 0.15
 t1 = 0.8
 t2 = 3.0
-N = 49
+N = 10000
 L = 1.0;
 
 pi = 3.14159265359;

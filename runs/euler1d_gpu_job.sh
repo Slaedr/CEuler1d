@@ -2,7 +2,7 @@
 #PBS -l nodes=1:ppn=16:gpus=1
 #PBS -l walltime=00:05:00
 #PBS -A rck-371-aa
-#PBS -o sodst_acc_gpu-auto-async.log
+#PBS -o sodst_acc_gpu-auto-async-0.15.log
 #PBS -e sodst_acc_gpu.err
 #PBS -N sodst_acc_gpu
 
