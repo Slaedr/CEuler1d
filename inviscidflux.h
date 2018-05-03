@@ -7,9 +7,7 @@
 #ifndef __INVISCIDFLUX_H
 #define __INVISCIDFLUX_H
 
-#ifndef __DEFINITIONS_H
 #include "definitions.h"
-#endif
 
 #pragma acc routine seq
 void compute_llfflux_prim(Float const *const uleft, Float const *const uright, Float *const flux, const Float g);

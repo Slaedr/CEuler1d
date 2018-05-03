@@ -43,6 +43,8 @@ else
 
 endif
 
+CFLAGS := $(CFLAGS) -Wall -Werror -std=c11
+
 ifdef BUILD_WITH_ACC
   $(info 'Compiling with OpenACC')
   ifeq ($(CC),pgcc)
@@ -55,9 +57,15 @@ ifdef BUILD_WITH_ACC
       CFLAGS := $(CFLAGS) -ta=tesla -Minfo=accel
       LFLAGS := $(LFLAGS) -ta=tesla
     endif
+  else
+    CFLAGS := $(CFLAGS) -fopenacc
   endif
+else
+  $(info 'Compiling without OpenACC')
+  CFLAGS := $(CFLAGS) -Wno-unknown-pragmas
 endif
 
+BASE_HEADERS := definitions.h
 
 clibsrcs =$(wildcard *.c)
 clibobjst =$(clibsrcs:.c=.o)
@@ -66,7 +74,7 @@ clibobjs = $(foreach obj,$(clibobjst),$(PREFIX)/$(obj))
 $(NAME): $(clibobjs)
 	$(CC) $(LFLAGS) -o $(PREFIX)/$(NAME) $(clibobjs) $(CLIBS) $(PROFILE)
 
-$(PREFIX)/%.o: %.c
+$(PREFIX)/%.o: %.c %.h $(BASE_HEADERS)
 	$(CC)  $(CFLAGS) -c -o $@ $<  $(INCLUDES) $(CLIBS) $(PROFILE)
 
 .PHONY : clean

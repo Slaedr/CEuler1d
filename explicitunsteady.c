@@ -12,11 +12,13 @@ void setup_data_unsteady(const size_t num_cells, const int bcleft, const int bcr
 	for(int i = 0; i < tsim->temporalOrder; i++)
 		tsim->RKCoeffs[i] = *(tsim->RKCoeffs) + i*3;
 
+	int ierr = 0;
 	FILE* rkfile = fopen(RKfile, "r");
 	for(int i = 0; i < tsim->temporalOrder; i++)
 		for(int j = 0; j < 3; j++)
-			fscanf(rkfile, "%lf", &(tsim->RKCoeffs[i][j]));
+			ierr = fscanf(rkfile, "%lf", &(tsim->RKCoeffs[i][j]));
 	fclose(rkfile);
+	TASSERT(ierr);
 
 	printf("Euler1dExplicit: Using %d-stage TVD RK scheme; loaded coefficients.\n", tsim->temporalOrder);
 }
@@ -102,10 +104,11 @@ void run_unsteady(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExp
 #pragma acc enter data copyin(sim->bcvalL[:NVARS], sim->bcvalR[:NVARS], dt, tsim->RKCoeffs[:temporalOrder][:3])
 #pragma acc enter data create(sim->dudx[:N+2][:NVARS], sim->res[:N+2][:NVARS], sim->fluxes[:N+1][:NVARS], sim->prleft[:N+1][:NVARS], sim->prright[:N+1][:NVARS], istage, c[:N+2], uold[:N+2][:NVARS], ustage[:N+2][:NVARS])
 
+	printf("Euler1dExplicit: run(): Starting time loop..\n");
+
 	while(time < tsim->ftime)
 	{
-		//printf("Euler1dExplicit: run(): Started time loop\n");
-
+		
 		//#pragma acc update self(u[:N+2][:NVARS])
 		
 		//std::cout << "Euler1dExplicit: run(): Updated self" << std::endl;
@@ -128,8 +131,6 @@ void run_unsteady(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExp
 			c[i] = sim->cfl*grid->dx[i]/(fabs(sim->u[i][1]) + sqrt(sim->g*(sim->g-1.0) * (sim->u[i][2] - 0.5*sim->u[i][1]*sim->u[i][1]/sim->u[i][0]) / sim->u[i][0]));
 			dt = fmin(dt, c[i]);
 		}
-
-		//std::cout << "Euler1dExplicit: run(): Computed dt" << std::endl;
 
 		// NOTE: moved apply_boundary_conditions() to the top of the inner loop
 		for(istage = 0; istage < tsim->temporalOrder; istage++)
@@ -157,7 +158,6 @@ void run_unsteady(const Grid *const grid, Euler1d *const sim, Euler1dUnsteadyExp
 			//compute_MUSCLReconstruction(N, x, u, prleft, prright, k);
 			compute_MUSCLReconstruction(grid, sim);
 			//compute_noReconstruction(grid, sim);
-			//printf("Euler1dExplicit: run():  Computed face values\n");
 
 			if(sim->fluxid == 0)
 				compute_inviscid_fluxes_llf(grid, sim);

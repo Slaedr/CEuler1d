@@ -22,6 +22,6 @@ plt.xlabel("x")
 plt.ylabel(" ")
 plt.grid("on")
 plt.legend(loc = "upper right")
-plt.savefig(scheme+".png", format="png")
+#plt.savefig(scheme+".png", format="png")
 plt.show()
 

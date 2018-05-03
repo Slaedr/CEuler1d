@@ -27,7 +27,10 @@ typedef double Float;
 
 void matprint(Float const *const *const mat, size_t m, size_t n);
 
-// OpenACC constants
+/// OpenACC constants
 #define NVIDIA_VECTOR_LENGTH 32
+
+/// Hard assertion
+#define TASSERT(x) if(!(x)) printf("Assertion failed!\n"); exit(-1)
 
 #endif

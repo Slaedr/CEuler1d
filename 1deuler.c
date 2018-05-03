@@ -145,6 +145,7 @@ void generate_mesh(int type, const Float *const pointlist, Grid *const grid)
 		grid->x[grid->N+1] = grid->nodes[grid->N] + grid->dx[grid->N]/2.0;
 		grid->dx[grid->N+1] = grid->dx[grid->N];
 	}
+	printf("Generated mesh.\n");
 }
 
 void set_area(int type, const Float *const cellCenteredAreas, const Grid *const grid, Euler1d *const sim)
