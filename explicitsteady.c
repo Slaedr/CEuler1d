@@ -1,15 +1,20 @@
 #include "explicitsteady.h"
 
-void setup_data_steady(const size_t num_cells, const int bcleft, const int bcright, const Float bcvalleft[NVARS], const Float bcvalright[NVARS], const Float domain_length,	const char *const _flux, 
-		const Float _cfl, Float _tol, int max_iter, Grid *const grid, Euler1d *const sim, Euler1dSteadyExplicit *const tsim)
+void setup_data_steady(const size_t num_cells, const int bcleft, const int bcright,
+					   const Float bcvalleft[NVARS], const Float bcvalright[NVARS],
+					   const Float domain_length, const char *const _flux,
+					   const Float _cfl, Float _tol, int max_iter,
+					   Grid *const grid, Euler1d *const sim, Euler1dSteadyExplicit *const tsim)
 {
 	tsim->tol = _tol;
 	tsim->maxiter = max_iter;
 	setup(grid, sim, num_cells, bcleft, bcright, bcvalleft, bcvalright, domain_length, _cfl, _flux);
 }
 
-/** Does not converge when MUSCL is used with the Van Albada limiter, for some reason. Reaches a limit cycle too soon.
- * When used without a limiter, MUSCL converges for smooth solutions when a continuous initial condition is used.
+/** Does not converge when MUSCL is used with the Van Albada limiter, for some reason.
+ * Reaches a limit cycle too soon.
+ * When used without a limiter, MUSCL converges for smooth solutions when a continuous initial
+ * condition is used.
  */
 void run_steady(const Grid *const grid, Euler1d *const sim, Euler1dSteadyExplicit *const tsim)
 {
@@ -65,8 +70,10 @@ void run_steady(const Grid *const grid, Euler1d *const sim, Euler1dSteadyExplici
 	{
 		for(int j = 0; j < NVARS; j++)
 		{
-			sim->u[i][j] = (sim->u[grid->N+1][j]-sim->u[pn][j])/(grid->x[grid->N+1]-grid->x[pn])*(grid->x[i]-grid->x[pn]) + sim->u[pn][j];
-			sim->prim[i][j] = (sim->prim[grid->N+1][j]-sim->prim[pn][j])/(grid->x[grid->N+1]-grid->x[pn])*(grid->x[i]-grid->x[pn]) + sim->prim[pn][j];
+			sim->u[i][j] = (sim->u[grid->N+1][j]-sim->u[pn][j])
+				/(grid->x[grid->N+1]-grid->x[pn])*(grid->x[i]-grid->x[pn]) + sim->u[pn][j];
+			sim->prim[i][j] = (sim->prim[grid->N+1][j]-sim->prim[pn][j])
+				/(grid->x[grid->N+1]-grid->x[pn])*(grid->x[i]-grid->x[pn]) + sim->prim[pn][j];
 		}
 	}
 
@@ -132,7 +139,8 @@ void run_steady(const Grid *const grid, Euler1d *const sim, Euler1dSteadyExplici
 		
 		for(i = 1; i < grid->N+1; i++)
 		{
-			Float c = sqrt( sim->g*(sim->g-1.0) * (sim->u[i][2] - 0.5*sim->u[i][1]*sim->u[i][1]/sim->u[i][0]) / sim->u[i][0] );
+			Float c = sqrt( sim->g*(sim->g-1.0)
+					 * (sim->u[i][2] - 0.5*sim->u[i][1]*sim->u[i][1]/sim->u[i][0]) / sim->u[i][0] );
 			dt[i] = sim->cfl * grid->dx[i]/(fabs(sim->u[i][1]) + c);
 		}
 
@@ -159,7 +167,8 @@ void run_steady(const Grid *const grid, Euler1d *const sim, Euler1dSteadyExplici
 
 		if(step % 10 == 0)
 		{
-			printf("Euler1dSteadyExplicit: run(): Step %d, relative mass flux norm = %f\n", step, resnorm/resnorm0);
+			printf("Euler1dSteadyExplicit: run(): Step %d, relative mass flux norm = %f\n", step,
+				   resnorm/resnorm0);
 		}
 
 		step++;
@@ -175,7 +184,8 @@ void run_steady(const Grid *const grid, Euler1d *const sim, Euler1dSteadyExplici
 	free(uold);
 }
 
-void postprocess_steady(const Grid *const grid, const Euler1d *const sim, const char *const outfilename)
+void postprocess_steady(const Grid *const grid, const Euler1d *const sim,
+						const char *const outfilename)
 {
 	printf("postprocess_steady: Writing output to file.\n");
 	FILE* ofile = fopen(outfilename, "w");
@@ -185,7 +195,8 @@ void postprocess_steady(const Grid *const grid, const Euler1d *const sim, const 
 		pressure = (sim->g-1)*(sim->u[i][2] - 0.5*sim->u[i][1]*sim->u[i][1]/sim->u[i][0]);
 		c = sqrt(sim->g*pressure/sim->u[i][0]);
 		mach = (sim->u[i][1]/sim->u[i][0])/c;
-		fprintf(ofile, "%.10e %.10e %.10e %.10e %.10e %.10e\n", grid->x[i], sim->u[i][0], mach, pressure/sim->bcvalL[0], sim->u[i][1], c);
+		fprintf(ofile, "%.10e %.10e %.10e %.10e %.10e %.10e\n", grid->x[i],
+				sim->u[i][0], mach, pressure/sim->bcvalL[0], sim->u[i][1], c);
 	}
 	fclose(ofile);
 }
