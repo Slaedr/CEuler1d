@@ -1,5 +1,5 @@
-#ifndef __DEFINITIONS_H
-#define __DEFINITIONS_H
+#ifndef CEULER1D_DEFINITIONS_H
+#define CEULER1D_DEFINITIONS_H
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,10 +13,11 @@
 
 typedef double Float;
 
-//const Float PI = 3.14159265359;
+const Float PI = 3.14159265359;
 
 /// adiabatic index
-#define gamma 1.4
+//#define gamma 1.4
+const Float gamma = 1.4;
 
 // MUSCL factor (not needed)
 //const Float k = 1.0/3.0;
@@ -25,6 +26,7 @@ typedef double Float;
 //const Float R = 287.1; // metric units
 #define GAS_CONSTANT 1716.0
 
+/// Write out a dense matrix to console
 void matprint(Float const *const *const mat, size_t m, size_t n);
 
 /// OpenACC constants

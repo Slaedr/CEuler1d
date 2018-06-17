@@ -4,17 +4,13 @@
  * \date Jan 2017
  */
 
-#ifndef __1DEULER_H
-#define __1DEULER_H
+#ifndef CEULER1D_1DEULER_H
+#define CEULER1D_1DEULER_H
 
-#ifndef __DEFINITIONS_H
 #include "definitions.h"
-#endif
-
-#ifndef __INVISCIDFLUX_H
 #include "inviscidflux.h"
-#endif
 
+/// Structured grid
 typedef struct
 {
 	size_t N;							///< Number of real cells in the grid
@@ -48,11 +44,20 @@ typedef struct
 	char* fluxstr;					///< Inviscid flux computation to be used
 	int fluxid;						///< Integer denoting which flux to use: 0 -> LLF, 1 -> Van Leer
 	char* cslopestr;				///< Slope reconstruction to be used (irrelevant)
-	char* recstr;					///< Method for computation of face values of flow variables from their cell-centred values (MUSCL is used always)
 	Float cfl;						///< CFL number
 	Float Cv;						///< Specific heat at constant volume
 	Float g;						///< Adiabatic index
-	Float muscl_k;					///< MUSCL reconstruction factor (ideally, 1/3); currently set statically in setup()
+
+	/// Method for computation of face values of flow variables from their cell-centred values
+	/** MUSCL is used always
+	 */
+	char* recstr;
+
+	/// MUSCL reconstruction factor
+	/** Ideally, 1/3; currently set statically in \ref setup
+	 */
+	Float muscl_k;
+
 } Euler1d;
 
 /// Setup variables
@@ -65,7 +70,8 @@ void setup(Grid *const grid, Euler1d *const sim, const size_t num_cells, const i
 void finalize(Grid *const grid, Euler1d *const sim);
 
 /// Generates a grid depending on 
-/** \param type If type == 0, a uniform grid is generated and used. If type == 1, then grid points need to passed to the function in
+/** \param type If type == 0, a uniform grid is generated and used.
+ *     If type == 1, then grid points need to passed to the function in
  * \param pointlist an array of positions of mesh points.
  *
  * Note that the domain is assumed to start at x=0.

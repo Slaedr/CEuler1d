@@ -1,12 +1,18 @@
 #include "1deuler.h"
 
-/** Array allocation: For 2D arrays, a list of pointer variables is first allocated. Then, the actual m x n storage is allocated to the first pointer in the list.
- * Finally, each pointer in the list is made to point to the beginning of the corresponding row in the actual storage.
- * This means that the storage is necessarily contiguous, but the (i,j) entry can be accessed as myarray[i][j].
+/** Array allocation: For 2D arrays, a list of pointer variables is first allocated.
+ * Then, the actual m x n storage is allocated to the first pointer in the list.
+ * Finally, each pointer in the list is made to point to the beginning of the corresponding row
+ * in the actual storage. Thus, the storage is necessarily contiguous, but
+ * the (i,j) entry can be accessed as myarray[i][j].
  * However, I don't know if this could be a disadvantage in the OpenACC context.
  */
-void setup(Grid *const grid, Euler1d *const sim, const size_t num_cells, const int bcleft, const int bcright, const Float leftBVs[NVARS], const Float rightBVs[NVARS], const Float domain_length, 
-		const Float _cfl, const char *const _flux)
+void setup(Grid *const grid, Euler1d *const sim,
+           const size_t num_cells,
+           const int bcleft, const int bcright,
+           const Float leftBVs[NVARS], const Float rightBVs[NVARS],
+           const Float domain_length,
+           const Float _cfl, const char *const _flux)
 {
 	grid->N = num_cells;
 	grid->ncell = grid->N+2;
@@ -148,7 +154,8 @@ void generate_mesh(int type, const Float *const pointlist, Grid *const grid)
 	printf("Generated mesh.\n");
 }
 
-void set_area(int type, const Float *const cellCenteredAreas, const Grid *const grid, Euler1d *const sim)
+void set_area(int type, const Float *const cellCenteredAreas,
+              const Grid *const grid, Euler1d *const sim)
 {
 	if(type == 0)
 		for(int i = 0; i < grid->N+2; i++)
@@ -168,7 +175,8 @@ void set_area(int type, const Float *const cellCenteredAreas, const Grid *const 
 		sim->A[grid->N+1] = sim->A[grid->N];
 	}
 
-	/** Get interface areas as inverse-distance weighted averages of cell-centered areas so that they are exact for linear profiles.
+	/** Get interface areas as inverse-distance weighted averages of cell-centered areas
+	 * so that they are exact for linear profiles.
 	 */
 	for(int i = 0; i <= grid->N; i++)
 		sim->Af[i] = (sim->A[i]*grid->dx[i+1] + sim->A[i+1]*grid->dx[i])/(grid->dx[i]+grid->dx[i+1]);
@@ -228,7 +236,9 @@ void update_residual(const Grid *const grid, Euler1d *const sim)
 	}
 }
 
-/*void compute_inviscid_fluxes_cellwise(const Float *const *const prleft, const Float *const *const prright, Float *const *const res, const Float *const Af, const Grid *const gr)
+/*void compute_inviscid_fluxes_cellwise(const Float *const *const prleft,
+  const Float *const *const prright, Float *const *const res, const Float *const Af,
+  const Grid *const gr)
 {
 	// NOTE: Do we really need to allocate this much?
 	Float** fluxes = (Float**)malloc((gr->nface)*sizeof(Float*));
@@ -287,7 +297,8 @@ void apply_boundary_conditions(const Grid *const grid, Euler1d *const sim)
 	int* bcL = &(sim->bcL);
 	int* bcR = &(sim->bcR);
 
-	#pragma acc parallel present(grid, sim, prim[:N+2][:NVARS], u[:N+2][:NVARS], bcvalL[:NVARS], bcvalR[:NVARS], bcL[:1], bcR[:1]) num_gangs(1)
+	#pragma acc parallel present(grid, sim, prim[:N+2][:NVARS], u[:N+2][:NVARS],\
+	                             bcvalL[:NVARS], bcvalR[:NVARS], bcL[:1], bcR[:1]) num_gangs(1)
 	{
 		if(*bcL == 0)
 		{
